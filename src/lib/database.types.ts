@@ -21,6 +21,7 @@ export type Database = {
           response_time: string
           created_at: string
           updated_at: string
+          avatar_url: string | null
         }
         Insert: {
           id: string
@@ -33,6 +34,7 @@ export type Database = {
           response_time?: string
           created_at?: string
           updated_at?: string
+          avatar_url?: string | null
         }
         Update: {
           id?: string
@@ -45,6 +47,7 @@ export type Database = {
           response_time?: string
           created_at?: string
           updated_at?: string
+          avatar_url?: string | null
         }
         Relationships: []
       }
@@ -77,6 +80,7 @@ export type Database = {
           created_at: string
           video_url: string | null
           flaws_video_url: string | null
+          seller_avatar_url: string | null
         }
         Insert: {
           id: string
@@ -106,6 +110,7 @@ export type Database = {
           created_at?: string
           video_url?: string | null
           flaws_video_url?: string | null
+          seller_avatar_url?: string | null
         }
         Update: {
           id?: string
@@ -135,6 +140,7 @@ export type Database = {
           created_at?: string
           video_url?: string | null
           flaws_video_url?: string | null
+          seller_avatar_url?: string | null
         }
         Relationships: []
       }

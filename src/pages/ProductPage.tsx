@@ -2,6 +2,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { formatMileage, formatPrice } from '../data/listings'
 import { StatusBadge } from '../components/StatusBadge'
+import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { useCall } from '../context/CallContext'
@@ -58,12 +59,6 @@ export function ProductPage() {
   }
 
   const canCall = listing.seller.status === 'online' && !call
-  const initials = listing.seller.name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
 
   const hint =
     listing.seller.status === 'online'
@@ -196,9 +191,11 @@ export function ProductPage() {
           <aside className="product__aside">
             <div className="seller-card">
               <div className="seller-card__header">
-                <div className="seller-card__avatar" aria-hidden="true">
-                  {initials}
-                </div>
+                <UserAvatar
+                  name={listing.seller.name}
+                  avatarUrl={listing.seller.avatarUrl}
+                  className="seller-card__avatar"
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{

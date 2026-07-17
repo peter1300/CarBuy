@@ -1,15 +1,33 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
+import { useListings } from '../context/ListingsContext'
+import { ALLOWED_AVATAR_TYPES, validateAvatarFile } from '../lib/avatar'
 
 export function EditProfilePage() {
   const { user, loading, updateProfile } = useAuth()
+  const { refreshListings } = useListings()
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
   const [companyName, setCompanyName] = useState(user?.companyName ?? '')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
   const [saved, setSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!avatarFile) {
+      setAvatarPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(avatarFile)
+    setAvatarPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [avatarFile])
 
   if (loading) {
     return (
@@ -25,6 +43,29 @@ export function EditProfilePage() {
     return <Navigate to="/belepes" replace />
   }
 
+  const displayName =
+    user.accountType === 'business' && user.companyName ? user.companyName : user.name
+  const shownAvatarUrl = removeAvatar
+    ? null
+    : avatarPreview || user.avatarUrl || null
+
+  const onPickAvatar = (file: File | null) => {
+    setFormError(null)
+    setSaved(false)
+    if (!file) {
+      setAvatarFile(null)
+      return
+    }
+    const err = validateAvatarFile(file)
+    if (err) {
+      setFormError(err)
+      setAvatarFile(null)
+      return
+    }
+    setRemoveAvatar(false)
+    setAvatarFile(file)
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (submitting) return
@@ -34,6 +75,8 @@ export function EditProfilePage() {
       name,
       email,
       companyName: user.accountType === 'business' ? companyName : undefined,
+      avatarFile: avatarFile ?? undefined,
+      removeAvatar: removeAvatar || undefined,
     })
     setSubmitting(false)
     if (result.error) {
@@ -41,6 +84,11 @@ export function EditProfilePage() {
       setSaved(false)
       return
     }
+    if (avatarFile || removeAvatar) {
+      void refreshListings()
+    }
+    setAvatarFile(null)
+    setRemoveAvatar(false)
     setSaved(true)
   }
 
@@ -52,11 +100,55 @@ export function EditProfilePage() {
         </Link>
         <header className="account-page__header">
           <h1>Profil szerkesztése</h1>
-          <p>Frissítsd a megjelenő nevedet és az elérhetőségedet.</p>
+          <p>Frissítsd a megjelenő nevedet, logódat és az elérhetőségedet.</p>
         </header>
 
         <form className="account-card" onSubmit={handleSubmit}>
           <div className="form-stack">
+            <div className="avatar-editor">
+              <UserAvatar
+                name={displayName}
+                avatarUrl={shownAvatarUrl}
+                className="avatar-editor__preview"
+              />
+              <div className="avatar-editor__copy">
+                <strong>Profil logó</strong>
+                <p>
+                  Ha nincs logó, a monogram jelenik meg a hirdetéseiden. JPG, PNG, WebP vagy GIF ·
+                  max. 2 MB.
+                </p>
+                <div className="avatar-editor__actions">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept={ALLOWED_AVATAR_TYPES.join(',')}
+                    className="sr-only"
+                    onChange={(e) => onPickAvatar(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    Logó feltöltése
+                  </button>
+                  {(user.avatarUrl || avatarFile) && !removeAvatar && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => {
+                        setAvatarFile(null)
+                        setRemoveAvatar(true)
+                        setSaved(false)
+                      }}
+                    >
+                      Logó törlése
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {user.accountType === 'business' && (
               <div className="form-field">
                 <label htmlFor="edit-company">Cégnév</label>

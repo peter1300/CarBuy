@@ -11,6 +11,7 @@ import {
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { ProfileRow } from '../lib/database.types'
+import { validateAvatarFile } from '../lib/avatar'
 
 export type AccountType = 'personal' | 'business'
 
@@ -21,6 +22,7 @@ export type User = {
   accountType: AccountType
   companyName?: string
   sellerStatus?: 'online' | 'busy' | 'offline'
+  avatarUrl?: string
 }
 
 type AuthContextValue = {
@@ -40,6 +42,8 @@ type AuthContextValue = {
     name: string
     email: string
     companyName?: string
+    avatarFile?: File | null
+    removeAvatar?: boolean
   }) => Promise<{ error?: string }>
 }
 
@@ -57,6 +61,7 @@ function mapProfile(row: ProfileRow): User {
     accountType: row.account_type,
     companyName: row.company_name ?? undefined,
     sellerStatus: row.seller_status,
+    avatarUrl: row.avatar_url ?? undefined,
   }
 }
 
@@ -249,29 +254,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateProfile = useCallback(
-    async (data: { name: string; email: string; companyName?: string }) => {
+    async (data: {
+      name: string
+      email: string
+      companyName?: string
+      avatarFile?: File | null
+      removeAvatar?: boolean
+    }) => {
       if (!user) return { error: 'Nincs bejelentkezve.' }
       if (!isSupabaseConfigured) return { error: 'Supabase nincs beállítva.' }
 
-      // Ensure row exists before update (covers users created before trigger/migration)
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser()
       if (authUser) await ensureProfile(authUser)
 
+      let nextAvatarUrl: string | null | undefined
+
+      if (data.removeAvatar) {
+        nextAvatarUrl = null
+      } else if (data.avatarFile) {
+        const validationError = validateAvatarFile(data.avatarFile)
+        if (validationError) return { error: validationError }
+
+        const ext =
+          data.avatarFile.type === 'image/png'
+            ? 'png'
+            : data.avatarFile.type === 'image/webp'
+              ? 'webp'
+              : data.avatarFile.type === 'image/gif'
+                ? 'gif'
+                : 'jpg'
+        const path = `${user.id}/avatar.${ext}`
+
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, data.avatarFile, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: data.avatarFile.type,
+        })
+        if (uploadError) {
+          return {
+            error:
+              uploadError.message.includes('Bucket not found') || /avatar/i.test(uploadError.message)
+                ? 'A logó feltöltése sikertelen. Futtasd a supabase/migrations/007_profile_avatar.sql fájlt a Supabase SQL Editorban.'
+                : uploadError.message,
+          }
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('avatars').getPublicUrl(path)
+        // Bust CDN/browser cache after replace
+        nextAvatarUrl = `${publicUrl}?v=${Date.now()}`
+      }
+
+      const patch: {
+        name: string
+        email: string
+        company_name: string | null
+        avatar_url?: string | null
+      } = {
+        name: data.name.trim(),
+        email: data.email.trim(),
+        company_name:
+          user.accountType === 'business' ? (data.companyName?.trim() || null) : null,
+      }
+      if (nextAvatarUrl !== undefined) {
+        patch.avatar_url = nextAvatarUrl
+      }
+
       const { data: row, error } = await supabase
         .from('profiles')
-        .update({
-          name: data.name.trim(),
-          email: data.email.trim(),
-          company_name:
-            user.accountType === 'business' ? (data.companyName?.trim() || null) : null,
-        })
+        .update(patch)
         .eq('id', user.id)
         .select('*')
         .single()
 
-      if (error || !row) return { error: error?.message ?? 'Mentés sikertelen.' }
+      if (error || !row) {
+        if (error?.message && /avatar_url/i.test(error.message)) {
+          return {
+            error:
+              'A profil mentése sikertelen. Futtasd a supabase/migrations/007_profile_avatar.sql fájlt a Supabase SQL Editorban.',
+          }
+        }
+        return { error: error?.message ?? 'Mentés sikertelen.' }
+      }
+
+      if (nextAvatarUrl !== undefined) {
+        await supabase
+          .from('listings')
+          .update({ seller_avatar_url: nextAvatarUrl })
+          .eq('owner_id', user.id)
+      }
+
       setUser(mapProfile(row))
       return {}
     },

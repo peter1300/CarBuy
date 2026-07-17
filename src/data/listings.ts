@@ -25,6 +25,7 @@ export type Listing = {
     status: SellerStatus
     rating: number
     responseTime: string
+    avatarUrl?: string
   }
   features: string[]
   specs: { label: string; value: string }[]

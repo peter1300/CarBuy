@@ -43,6 +43,7 @@ export function mapListingRow(row: ListingRow): Listing {
       status: row.seller_status,
       rating: Number(row.seller_rating),
       responseTime: row.seller_response_time,
+      avatarUrl: row.seller_avatar_url ?? undefined,
     },
     features: asStringArray(row.features),
     specs: asSpecs(row.specs),

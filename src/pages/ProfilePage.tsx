@@ -1,4 +1,5 @@
 import { Link, Navigate } from 'react-router-dom'
+import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { formatMileage, formatPrice } from '../data/listings'
@@ -27,12 +28,6 @@ export function ProfilePage() {
   const totalUniqueViews = listings.reduce((sum, l) => sum + (l.uniqueViews ?? 0), 0)
   const displayName =
     user.accountType === 'business' && user.companyName ? user.companyName : user.name
-  const initials = displayName
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
 
   return (
     <main className="page profile-page">
@@ -40,9 +35,11 @@ export function ProfilePage() {
       <div className="container">
         <header className="profile-header">
           <div className="profile-header__identity">
-            <div className="profile-header__avatar" aria-hidden="true">
-              {initials}
-            </div>
+            <UserAvatar
+              name={displayName}
+              avatarUrl={user.avatarUrl}
+              className="profile-header__avatar"
+            />
             <div>
               <p className="profile-header__eyebrow">
                 {user.accountType === 'business' ? 'Vállalkozói fiók' : 'Magánszemély'}

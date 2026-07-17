@@ -247,6 +247,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           seller_status: input.status,
           seller_rating: 5.0,
           seller_response_time: '< 5 perc',
+          seller_avatar_url: profile.avatarUrl ?? null,
           unique_views: 0,
         })
         .select('*')
