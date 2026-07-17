@@ -35,7 +35,7 @@ export function LandingPage() {
             </p>
           </div>
 
-          <SearchPanel />
+          <SearchPanel listingCount={listings.length} />
         </div>
       </section>
 
@@ -46,7 +46,7 @@ export function LandingPage() {
               <h2 className="section__title">Friss videós hirdetések</h2>
               <p className="section__sub">Mozgásban látod az autót — nem csak állóképeken.</p>
             </div>
-            <Link to="/szemelyauto" className="btn btn--outline">
+            <Link to="/hirdetesek" className="btn btn--outline">
               Összes hirdetés
             </Link>
           </div>

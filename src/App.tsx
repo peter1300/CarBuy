@@ -9,6 +9,7 @@ import { CallOverlay } from './components/CallOverlay'
 import { LandingPage } from './pages/LandingPage'
 import { ProductPage, LegacyListingRedirect } from './pages/ProductPage'
 import { CategoryPage } from './pages/CategoryPage'
+import { ListingsPage } from './pages/ListingsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { LoginPage } from './pages/LoginPage'
 import { CreateListingPage } from './pages/CreateListingPage'
@@ -28,6 +29,7 @@ export default function App() {
                 <Header />
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
+                  <Route path="/hirdetesek" element={<ListingsPage />} />
                   <Route path="/szemelyauto" element={<CategoryPage />} />
                   <Route path="/szemelyauto/:make" element={<CategoryPage />} />
                   <Route path="/szemelyauto/:make/:model" element={<CategoryPage />} />

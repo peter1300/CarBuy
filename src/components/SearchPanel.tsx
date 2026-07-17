@@ -1,22 +1,54 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
 import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
+import {
+  EMPTY_LISTING_SEARCH,
+  listingSearchToQuery,
+  type ListingSearchFilters,
+} from '../lib/listingSearch'
 
 const fuels = ['Üzemanyag', 'Benzin', 'Dízel', 'Hibrid', 'Elektromos']
 
-export function SearchPanel() {
-  const [make, setMake] = useState('')
-  const [model, setModel] = useState('')
-  const [priceMin, setPriceMin] = useState('')
-  const [priceMax, setPriceMax] = useState('')
-  const [yearFrom, setYearFrom] = useState('')
-  const [yearTo, setYearTo] = useState('')
-  const [powerMin, setPowerMin] = useState('')
-  const [powerMax, setPowerMax] = useState('')
-  const [mileageMin, setMileageMin] = useState('')
-  const [mileageMax, setMileageMax] = useState('')
-  const [fuel, setFuel] = useState('Üzemanyag')
-  const [location, setLocation] = useState('')
+type Props = {
+  variant?: 'hero' | 'sidebar'
+  initialFilters?: ListingSearchFilters
+  listingCount?: number
+}
+
+export function SearchPanel({
+  variant = 'hero',
+  initialFilters = EMPTY_LISTING_SEARCH,
+  listingCount,
+}: Props) {
+  const navigate = useNavigate()
+  const [make, setMake] = useState(initialFilters.make)
+  const [model, setModel] = useState(initialFilters.model)
+  const [priceMin, setPriceMin] = useState(initialFilters.priceMin)
+  const [priceMax, setPriceMax] = useState(initialFilters.priceMax)
+  const [yearFrom, setYearFrom] = useState(initialFilters.yearFrom)
+  const [yearTo, setYearTo] = useState(initialFilters.yearTo)
+  const [powerMin, setPowerMin] = useState(initialFilters.powerMin)
+  const [powerMax, setPowerMax] = useState(initialFilters.powerMax)
+  const [mileageMin, setMileageMin] = useState(initialFilters.mileageMin)
+  const [mileageMax, setMileageMax] = useState(initialFilters.mileageMax)
+  const [fuel, setFuel] = useState(initialFilters.fuel || 'Üzemanyag')
+  const [location, setLocation] = useState(initialFilters.location)
+
+  useEffect(() => {
+    setMake(initialFilters.make)
+    setModel(initialFilters.model)
+    setPriceMin(initialFilters.priceMin)
+    setPriceMax(initialFilters.priceMax)
+    setYearFrom(initialFilters.yearFrom)
+    setYearTo(initialFilters.yearTo)
+    setPowerMin(initialFilters.powerMin)
+    setPowerMax(initialFilters.powerMax)
+    setMileageMin(initialFilters.mileageMin)
+    setMileageMax(initialFilters.mileageMax)
+    setFuel(initialFilters.fuel || 'Üzemanyag')
+    setLocation(initialFilters.location)
+  }, [initialFilters])
 
   const models = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
 
@@ -27,17 +59,48 @@ export function SearchPanel() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const el = document.getElementById('hirdetesek')
-    el?.scrollIntoView({ behavior: 'smooth' })
+    const filters: ListingSearchFilters = {
+      q: initialFilters.q,
+      make,
+      model,
+      priceMin,
+      priceMax,
+      yearFrom,
+      yearTo,
+      powerMin,
+      powerMax,
+      mileageMin,
+      mileageMax,
+      fuel: fuel === 'Üzemanyag' ? '' : fuel,
+      location,
+    }
+    navigate(`/hirdetesek${listingSearchToQuery(filters)}`)
   }
 
+  const idPrefix = variant === 'sidebar' ? 'side-' : ''
+  const metaCount =
+    typeof listingCount === 'number'
+      ? listingCount.toLocaleString('hu-HU')
+      : '2 847'
+
   return (
-    <form className="search-panel" id="kereses" onSubmit={handleSubmit} aria-label="Autókereső">
+    <form
+      className={`search-panel search-panel--${variant}`}
+      id={variant === 'hero' ? 'kereses' : undefined}
+      onSubmit={handleSubmit}
+      aria-label="Autókereső"
+    >
+      {variant === 'sidebar' && <h2 className="search-panel__heading">Szűrés</h2>}
+
       <div className="search-panel__rows">
         <div className="search-panel__row search-panel__row--primary">
           <div className="search-field">
-            <label htmlFor="make">Márka</label>
-            <select id="make" value={make} onChange={(e) => handleMakeChange(e.target.value)}>
+            <label htmlFor={`${idPrefix}make`}>Márka</label>
+            <select
+              id={`${idPrefix}make`}
+              value={make}
+              onChange={(e) => handleMakeChange(e.target.value)}
+            >
               <option value="">Márka</option>
               {CAR_MAKES.map((m) => (
                 <option key={m} value={m}>
@@ -48,9 +111,9 @@ export function SearchPanel() {
           </div>
 
           <div className="search-field">
-            <label htmlFor="model">Modell</label>
+            <label htmlFor={`${idPrefix}model`}>Modell</label>
             <select
-              id="model"
+              id={`${idPrefix}model`}
               value={model}
               onChange={(e) => setModel(e.target.value)}
               disabled={!make}
@@ -85,8 +148,12 @@ export function SearchPanel() {
           </div>
 
           <div className="search-field">
-            <label htmlFor="fuel">Üzemanyag</label>
-            <select id="fuel" value={fuel} onChange={(e) => setFuel(e.target.value)}>
+            <label htmlFor={`${idPrefix}fuel`}>Üzemanyag</label>
+            <select
+              id={`${idPrefix}fuel`}
+              value={fuel}
+              onChange={(e) => setFuel(e.target.value)}
+            >
               {fuels.map((f) => (
                 <option key={f} value={f} disabled={f === 'Üzemanyag'}>
                   {f}
@@ -96,8 +163,12 @@ export function SearchPanel() {
           </div>
 
           <div className="search-field">
-            <label htmlFor="location">Helyszín</label>
-            <select id="location" value={location} onChange={(e) => setLocation(e.target.value)}>
+            <label htmlFor={`${idPrefix}location`}>Helyszín</label>
+            <select
+              id={`${idPrefix}location`}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            >
               <option value="">Helyszín</option>
               {HUNGARY_LOCATIONS.map((l) => (
                 <option key={l} value={l}>
@@ -180,13 +251,20 @@ export function SearchPanel() {
       </div>
 
       <div className="search-panel__actions">
-        <p className="search-panel__meta">
-          <strong>2 847</strong> videós hirdetés · frissítve ma
-        </p>
-        <button type="submit" className="btn btn--accent btn--lg">
+        {variant === 'hero' && (
+          <p className="search-panel__meta">
+            <strong>{metaCount}</strong> videós hirdetés · frissítve ma
+          </p>
+        )}
+        <button type="submit" className="btn btn--accent btn--lg search-panel__submit">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M12.2 12.2L15.5 15.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            <path
+              d="M12.2 12.2L15.5 15.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
           </svg>
           Keresés
         </button>
