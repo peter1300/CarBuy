@@ -14,22 +14,31 @@ export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [accepted, setAccepted] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const selectType = (type: AccountType) => {
     setAccountType(type)
     setStep('form')
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accountType || !accepted) return
-    register({
+    if (!accountType || !accepted || submitting) return
+    setFormError(null)
+    setSubmitting(true)
+    const result = await register({
       name,
       email,
       password,
       accountType,
       companyName: accountType === 'business' ? companyName : undefined,
     })
+    setSubmitting(false)
+    if (result.error) {
+      setFormError(result.error)
+      return
+    }
     navigate('/hirdetes-feladas')
   }
 
@@ -208,8 +217,14 @@ export function RegisterPage() {
                   </span>
                 </label>
 
-                <button type="submit" className="btn btn--accent btn--lg btn--block" disabled={!accepted}>
-                  Fiók létrehozása
+                {formError && <p className="form-error">{formError}</p>}
+
+                <button
+                  type="submit"
+                  className="btn btn--accent btn--lg btn--block"
+                  disabled={!accepted || submitting}
+                >
+                  {submitting ? 'Létrehozás…' : 'Fiók létrehozása'}
                 </button>
               </div>
 

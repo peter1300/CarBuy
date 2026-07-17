@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
-import { listings } from '../data/listings'
 import { ListingCard } from '../components/ListingCard'
 import { SearchPanel } from '../components/SearchPanel'
+import { useListings } from '../context/ListingsContext'
 
 export function LandingPage() {
+  const { listings, loading, error } = useListings()
+
   return (
     <main className="page">
       <section className="hero">
@@ -29,16 +31,23 @@ export function LandingPage() {
               <h2 className="section__title">Friss videós hirdetések</h2>
               <p className="section__sub">Mozgásban látod az autót — nem csak állóképeken.</p>
             </div>
-            <button type="button" className="btn btn--outline">
+            <Link to="/szemelyauto" className="btn btn--outline">
               Összes hirdetés
-            </button>
+            </Link>
           </div>
 
-          <div className="listings-grid">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
+          {loading && <p className="state-message">Hirdetések betöltése…</p>}
+          {error && !loading && <p className="form-error">{error}</p>}
+          {!loading && !error && listings.length === 0 && (
+            <p className="state-message">Még nincsenek hirdetések. Légy te az első!</p>
+          )}
+          {!loading && listings.length > 0 && (
+            <div className="listings-grid">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

@@ -1,11 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
-import { listings } from '../data/listings'
 import { ListingCard } from '../components/ListingCard'
+import { useListings } from '../context/ListingsContext'
 import { slugifySegment } from '../lib/listingUrl'
 
 /** /szemelyauto, /szemelyauto/:make, /szemelyauto/:make/:model — szűrt listák */
 export function CategoryPage() {
   const { make, model } = useParams<{ make?: string; model?: string }>()
+  const { listings, loading, error } = useListings()
 
   const filtered = listings.filter((listing) => {
     if (make && slugifySegment(listing.make) !== make) return false
@@ -49,13 +50,19 @@ export function CategoryPage() {
         <header className="category-page__header">
           <h1>{title}</h1>
           <p>
-            {filtered.length === 0
-              ? 'Nincs megjeleníthető hirdetés ebben a kategóriában.'
-              : `${filtered.length} videós hirdetés`}
+            {loading
+              ? 'Betöltés…'
+              : filtered.length === 0
+                ? 'Nincs megjeleníthető hirdetés ebben a kategóriában.'
+                : `${filtered.length} videós hirdetés`}
           </p>
         </header>
 
-        {filtered.length > 0 ? (
+        {error && <p className="form-error">{error}</p>}
+
+        {loading ? (
+          <p className="state-message">Hirdetések betöltése…</p>
+        ) : filtered.length > 0 ? (
           <div className="listings-grid">
             {filtered.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />

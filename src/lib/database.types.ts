@@ -1,0 +1,167 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          account_type: 'personal' | 'business'
+          company_name: string | null
+          seller_status: 'online' | 'busy' | 'offline'
+          rating: number
+          response_time: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          email: string
+          account_type: 'personal' | 'business'
+          company_name?: string | null
+          seller_status?: 'online' | 'busy' | 'offline'
+          rating?: number
+          response_time?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          account_type?: 'personal' | 'business'
+          company_name?: string | null
+          seller_status?: 'online' | 'busy' | 'offline'
+          rating?: number
+          response_time?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      listings: {
+        Row: {
+          id: string
+          owner_id: string | null
+          is_demo: boolean
+          title: string
+          make: string
+          model: string
+          year: number
+          price: number
+          mileage: number
+          fuel: string
+          transmission: string
+          power: number
+          location: string
+          description: string
+          video_poster: string
+          video_duration: string
+          features: Json
+          specs: Json
+          seller_name: string
+          seller_type: 'private' | 'dealer'
+          seller_status: 'online' | 'busy' | 'offline'
+          seller_rating: number
+          seller_response_time: string
+          unique_views: number
+          created_at: string
+        }
+        Insert: {
+          id: string
+          owner_id?: string | null
+          is_demo?: boolean
+          title: string
+          make: string
+          model: string
+          year: number
+          price: number
+          mileage?: number
+          fuel?: string
+          transmission?: string
+          power?: number
+          location?: string
+          description?: string
+          video_poster: string
+          video_duration?: string
+          features?: Json
+          specs?: Json
+          seller_name: string
+          seller_type: 'private' | 'dealer'
+          seller_status?: 'online' | 'busy' | 'offline'
+          seller_rating?: number
+          seller_response_time?: string
+          unique_views?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string | null
+          is_demo?: boolean
+          title?: string
+          make?: string
+          model?: string
+          year?: number
+          price?: number
+          mileage?: number
+          fuel?: string
+          transmission?: string
+          power?: number
+          location?: string
+          description?: string
+          video_poster?: string
+          video_duration?: string
+          features?: Json
+          specs?: Json
+          seller_name?: string
+          seller_type?: 'private' | 'dealer'
+          seller_status?: 'online' | 'busy' | 'offline'
+          seller_rating?: number
+          seller_response_time?: string
+          unique_views?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      listing_views: {
+        Row: {
+          listing_id: string
+          visitor_id: string
+          created_at: string
+        }
+        Insert: {
+          listing_id: string
+          visitor_id: string
+          created_at?: string
+        }
+        Update: {
+          listing_id?: string
+          visitor_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: Record<string, never>
+    Functions: {
+      record_unique_view: {
+        Args: { p_listing_id: string; p_visitor_id: string }
+        Returns: number
+      }
+    }
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
+  }
+}
+
+export type ListingRow = Database['public']['Tables']['listings']['Row']
+export type ProfileRow = Database['public']['Tables']['profiles']['Row']

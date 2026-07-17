@@ -8,12 +8,22 @@ export function LoginPage() {
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const redirectTo =
     (location.state as { from?: string } | null)?.from ?? '/hirdetes-feladas'
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    login(email, password)
+    if (submitting) return
+    setFormError(null)
+    setSubmitting(true)
+    const result = await login(email, password)
+    setSubmitting(false)
+    if (result.error) {
+      setFormError(result.error)
+      return
+    }
     navigate(redirectTo)
   }
 
@@ -56,8 +66,9 @@ export function LoginPage() {
                   autoComplete="current-password"
                 />
               </div>
-              <button type="submit" className="btn btn--accent btn--lg btn--block">
-                Belépés
+              {formError && <p className="form-error">{formError}</p>}
+              <button type="submit" className="btn btn--accent btn--lg btn--block" disabled={submitting}>
+                {submitting ? 'Belépés…' : 'Belépés'}
               </button>
             </div>
 

@@ -12,7 +12,7 @@ export function ProductPage() {
   const { make, model, slug } = useParams<{ make: string; model: string; slug: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { getListing, recordUniqueView } = useListings()
+  const { getListing, recordUniqueView, loading: listingsLoading } = useListings()
   const { startCall, call } = useCall()
 
   const id = slug ? listingIdFromSlug(slug) : undefined
@@ -20,8 +20,18 @@ export function ProductPage() {
 
   useEffect(() => {
     if (!id || !listing) return
-    recordUniqueView(id, { excludeUserId: user?.id })
+    void recordUniqueView(id, { excludeUserId: user?.id })
   }, [id, listing?.id, recordUniqueView, user?.id])
+
+  if (listingsLoading) {
+    return (
+      <main className="page product">
+        <div className="container">
+          <p className="state-message">Hirdetés betöltése…</p>
+        </div>
+      </main>
+    )
+  }
 
   if (!listing || !id) {
     return (

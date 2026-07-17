@@ -6,8 +6,18 @@ import { listingPath } from '../lib/listingUrl'
 import { StatusBadge } from '../components/StatusBadge'
 
 export function ProfilePage() {
-  const { user, logout } = useAuth()
-  const { getListingsForUser, removeListing } = useListings()
+  const { user, loading: authLoading, logout } = useAuth()
+  const { getListingsForUser, removeListing, loading: listingsLoading, error } = useListings()
+
+  if (authLoading) {
+    return (
+      <main className="page profile-page">
+        <div className="container">
+          <p className="state-message">Profil betöltése…</p>
+        </div>
+      </main>
+    )
+  }
 
   if (!user) {
     return <Navigate to="/belepes" replace />
@@ -45,7 +55,7 @@ export function ProfilePage() {
             <Link to="/hirdetes-feladas" className="btn btn--accent btn--lg">
               Új hirdetés
             </Link>
-            <button type="button" className="btn btn--ghost btn--lg" onClick={logout}>
+            <button type="button" className="btn btn--ghost btn--lg" onClick={() => void logout()}>
               Kilépés
             </button>
           </div>
@@ -56,9 +66,11 @@ export function ProfilePage() {
             <div>
               <h2 id="my-listings-title">Saját hirdetéseim</h2>
               <p>
-                {listings.length === 0
-                  ? 'Még nincs feladott hirdetésed.'
-                  : `${listings.length} aktív videós hirdetés`}
+                {listingsLoading
+                  ? 'Betöltés…'
+                  : listings.length === 0
+                    ? 'Még nincs feladott hirdetésed.'
+                    : `${listings.length} aktív videós hirdetés`}
               </p>
             </div>
             <div className="profile-stat" aria-label="Egyedi megtekintések összesen">
@@ -69,7 +81,11 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {listings.length === 0 ? (
+          {error && <p className="form-error">{error}</p>}
+
+          {listingsLoading ? (
+            <p className="state-message">Hirdetések betöltése…</p>
+          ) : listings.length === 0 ? (
             <div className="profile-empty">
               <h3>Itt jelennek meg a hirdetéseid</h3>
               <p>
@@ -127,7 +143,7 @@ export function ProfilePage() {
                         <button
                           type="button"
                           className="btn btn--ghost"
-                          onClick={() => removeListing(listing.id)}
+                          onClick={() => void removeListing(listing.id)}
                         >
                           Törlés
                         </button>

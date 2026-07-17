@@ -3,23 +3,44 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export function EditProfilePage() {
-  const { user, updateProfile } = useAuth()
+  const { user, loading, updateProfile } = useAuth()
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
   const [companyName, setCompanyName] = useState(user?.companyName ?? '')
   const [saved, setSaved] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  if (loading) {
+    return (
+      <main className="page account-page">
+        <div className="container">
+          <p className="state-message">Profil betöltése…</p>
+        </div>
+      </main>
+    )
+  }
 
   if (!user) {
     return <Navigate to="/belepes" replace />
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    updateProfile({
+    if (submitting) return
+    setFormError(null)
+    setSubmitting(true)
+    const result = await updateProfile({
       name,
       email,
       companyName: user.accountType === 'business' ? companyName : undefined,
     })
+    setSubmitting(false)
+    if (result.error) {
+      setFormError(result.error)
+      setSaved(false)
+      return
+    }
     setSaved(true)
   }
 
@@ -57,7 +78,7 @@ export function EditProfilePage() {
               <input
                 id="edit-name"
                 required
-                value={name}
+                value={name || user.name}
                 onChange={(e) => {
                   setName(e.target.value)
                   setSaved(false)
@@ -70,16 +91,17 @@ export function EditProfilePage() {
                 id="edit-email"
                 type="email"
                 required
-                value={email}
+                value={email || user.email}
                 onChange={(e) => {
                   setEmail(e.target.value)
                   setSaved(false)
                 }}
               />
             </div>
+            {formError && <p className="form-error">{formError}</p>}
             {saved && <p className="account-card__success">A profilod elmentve.</p>}
-            <button type="submit" className="btn btn--accent btn--lg">
-              Mentés
+            <button type="submit" className="btn btn--accent btn--lg" disabled={submitting}>
+              {submitting ? 'Mentés…' : 'Mentés'}
             </button>
           </div>
         </form>

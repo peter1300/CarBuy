@@ -13,10 +13,12 @@ const STEPS = [
 ] as const
 
 export function CreateListingPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { addListing } = useListings()
   const [step, setStep] = useState(1)
   const [publishedListing, setPublishedListing] = useState<Listing | null>(null)
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
 
   const [videoName, setVideoName] = useState('')
   const [title, setTitle] = useState('')
@@ -34,6 +36,16 @@ export function CreateListingPage() {
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100
 
+  if (authLoading) {
+    return (
+      <main className="page create-page">
+        <div className="container">
+          <p className="state-message">Betöltés…</p>
+        </div>
+      </main>
+    )
+  }
+
   if (!user) {
     return <Navigate to="/regisztracio" replace />
   }
@@ -44,24 +56,33 @@ export function CreateListingPage() {
   const handleNext = () => setStep((s) => Math.min(s + 1, STEPS.length))
   const handleBack = () => setStep((s) => Math.max(s - 1, 1))
 
-  const handlePublish = (e: FormEvent) => {
+  const handlePublish = async (e: FormEvent) => {
     e.preventDefault()
-    const listing = addListing(user, {
-      title: title || `${make} ${model}`.trim() || 'Új hirdetés',
-      make: make || '—',
-      model: model || '—',
-      year: Number(year) || new Date().getFullYear(),
-      price: Number(price) || 0,
-      mileage: Number(mileage) || 0,
-      fuel: fuel || '—',
-      transmission: transmission || '—',
-      power: Number(power) || 0,
-      location: location || '—',
-      description,
-      videoName,
-      status: goOnline ? 'online' : 'offline',
-    })
-    setPublishedListing(listing)
+    if (publishing) return
+    setPublishError(null)
+    setPublishing(true)
+    try {
+      const listing = await addListing(user, {
+        title: title || `${make} ${model}`.trim() || 'Új hirdetés',
+        make: make || '—',
+        model: model || '—',
+        year: Number(year) || new Date().getFullYear(),
+        price: Number(price) || 0,
+        mileage: Number(mileage) || 0,
+        fuel: fuel || '—',
+        transmission: transmission || '—',
+        power: Number(power) || 0,
+        location: location || '—',
+        description,
+        videoName,
+        status: goOnline ? 'online' : 'offline',
+      })
+      setPublishedListing(listing)
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Közzététel sikertelen.')
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const simulateVideo = () => {
@@ -432,19 +453,26 @@ export function CreateListingPage() {
 
             <div className="create-actions">
               {step > 1 ? (
-                <button type="button" className="btn btn--ghost btn--lg" onClick={handleBack}>
+                <button type="button" className="btn btn--ghost btn--lg" onClick={handleBack} disabled={publishing}>
                   Vissza
                 </button>
               ) : (
                 <span />
               )}
-              <button
-                type="submit"
-                className="btn btn--accent btn--lg"
-                disabled={step === 1 && !videoName}
-              >
-                {step === STEPS.length ? 'Hirdetés közzététele' : 'Tovább'}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                {publishError && <p className="form-error">{publishError}</p>}
+                <button
+                  type="submit"
+                  className="btn btn--accent btn--lg"
+                  disabled={(step === 1 && !videoName) || publishing}
+                >
+                  {publishing
+                    ? 'Közzététel…'
+                    : step === STEPS.length
+                      ? 'Hirdetés közzététele'
+                      : 'Tovább'}
+                </button>
+              </div>
             </div>
           </form>
 
