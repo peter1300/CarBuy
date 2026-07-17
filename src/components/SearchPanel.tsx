@@ -1,17 +1,24 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
+import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
 
-const makes = ['Márka', 'BMW', 'Audi', 'Mercedes-Benz', 'Volkswagen', 'Toyota', 'Tesla']
 const fuels = ['Üzemanyag', 'Benzin', 'Dízel', 'Hibrid', 'Elektromos']
 const locations = ['Megye / város', 'Budapest', 'Debrecen', 'Győr', 'Szeged', 'Pécs', 'Miskolc']
 
 export function SearchPanel() {
-  const [make, setMake] = useState('Márka')
+  const [make, setMake] = useState('')
   const [model, setModel] = useState('')
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const [yearFrom, setYearFrom] = useState('')
   const [fuel, setFuel] = useState('Üzemanyag')
   const [location, setLocation] = useState('Megye / város')
+
+  const models = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
+
+  const handleMakeChange = (value: string) => {
+    setMake(value)
+    setModel('')
+  }
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -24,9 +31,10 @@ export function SearchPanel() {
       <div className="search-panel__grid">
         <div className="search-field">
           <label htmlFor="make">Márka</label>
-          <select id="make" value={make} onChange={(e) => setMake(e.target.value)}>
-            {makes.map((m) => (
-              <option key={m} value={m} disabled={m === 'Márka'}>
+          <select id="make" value={make} onChange={(e) => handleMakeChange(e.target.value)}>
+            <option value="">Márka</option>
+            {CAR_MAKES.map((m) => (
+              <option key={m} value={m}>
                 {m}
               </option>
             ))}
@@ -35,13 +43,19 @@ export function SearchPanel() {
 
         <div className="search-field">
           <label htmlFor="model">Modell</label>
-          <input
+          <select
             id="model"
-            type="text"
-            placeholder="pl. Golf, Model 3"
             value={model}
             onChange={(e) => setModel(e.target.value)}
-          />
+            disabled={!make}
+          >
+            <option value="">{make ? 'Modell' : 'Előbb válassz márkát'}</option>
+            {models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="search-field search-field--range">

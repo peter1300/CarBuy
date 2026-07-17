@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
+import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
 import {
   ALLOWED_LISTING_VIDEO_TYPES,
   MAX_LISTING_VIDEO_BYTES,
@@ -42,6 +43,7 @@ export function CreateListingPage() {
   const [goOnline, setGoOnline] = useState(true)
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100
+  const modelsForMake = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
 
   useEffect(() => {
     if (!videoFile) {
@@ -52,6 +54,12 @@ export function CreateListingPage() {
     setVideoPreviewUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [videoFile])
+
+  useEffect(() => {
+    if (make && model && !modelsForMake.includes(model)) {
+      setModel('')
+    }
+  }, [make, model, modelsForMake])
 
   if (authLoading) {
     return (
@@ -303,23 +311,43 @@ export function CreateListingPage() {
                   </div>
                   <div className="form-field">
                     <label htmlFor="make">Márka</label>
-                    <input
+                    <select
                       id="make"
                       required
                       value={make}
-                      onChange={(e) => setMake(e.target.value)}
-                      placeholder="BMW"
-                    />
+                      onChange={(e) => {
+                        setMake(e.target.value)
+                        setModel('')
+                      }}
+                    >
+                      <option value="" disabled>
+                        Válassz márkát
+                      </option>
+                      {CAR_MAKES.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-field">
                     <label htmlFor="model">Modell</label>
-                    <input
+                    <select
                       id="model"
                       required
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
-                      placeholder="320d"
-                    />
+                      disabled={!make}
+                    >
+                      <option value="" disabled>
+                        {make ? 'Válassz modellt' : 'Előbb válassz márkát'}
+                      </option>
+                      {modelsForMake.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-field">
                     <label htmlFor="year">Évjárat</label>
