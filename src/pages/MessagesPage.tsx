@@ -69,7 +69,12 @@ export function MessagesInboxPage() {
                   )}
                   <span className="messages-thread__body">
                     <span className="messages-thread__top">
-                      <strong>{c.otherName}</strong>
+                      <strong>
+                        {c.otherName}
+                        {c.unreadCount > 0 && (
+                          <span className="messages-thread__unread">{c.unreadCount}</span>
+                        )}
+                      </strong>
                       <time dateTime={c.lastMessageAt}>{formatTime(c.lastMessageAt)}</time>
                     </span>
                     <span className="messages-thread__listing">{c.listingTitle}</span>

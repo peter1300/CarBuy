@@ -29,6 +29,7 @@ export type ConversationSummary = {
   otherName: string
   lastMessageAt: string
   lastPreview: string
+  unreadCount: number
 }
 
 export type ChatMessage = {
@@ -43,6 +44,7 @@ export type ChatMessage = {
 
 type MessagesContextValue = {
   conversations: ConversationSummary[]
+  unreadCount: number
   loadingConversations: boolean
   conversationsError: string | null
   refreshConversations: () => Promise<void>
@@ -52,6 +54,7 @@ type MessagesContextValue = {
   messagesError: string | null
   activeConversationId: string | null
   setActiveConversationId: (id: string | null) => void
+  markConversationRead: (conversationId: string) => Promise<void>
   sendMessage: (input: {
     conversationId: string
     text?: string
@@ -100,6 +103,11 @@ function previewFromMessage(row: Pick<MessageRow, 'body' | 'video_path'> | null 
   return 'Üzenet'
 }
 
+function lastReadAt(row: ConversationRow, userId: string): string {
+  if (row.buyer_id === userId) return row.buyer_last_read_at ?? '1970-01-01T00:00:00.000Z'
+  return row.seller_last_read_at ?? '1970-01-01T00:00:00.000Z'
+}
+
 export function MessagesProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
@@ -110,11 +118,17 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [messagesError, setMessagesError] = useState<string | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const inboxChannelRef = useRef<RealtimeChannel | null>(null)
   const activeIdRef = useRef<string | null>(null)
+  const userIdRef = useRef<string | undefined>(user?.id)
 
   useEffect(() => {
     activeIdRef.current = activeConversationId
   }, [activeConversationId])
+
+  useEffect(() => {
+    userIdRef.current = user?.id
+  }, [user?.id])
 
   const refreshConversations = useCallback(async () => {
     if (!isSupabaseConfigured || !user) {
@@ -148,17 +162,15 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
 
     const listingIds = [...new Set(rows.map((r) => r.listing_id))]
     const profileIds = [...new Set(rows.flatMap((r) => [r.buyer_id, r.seller_id]))]
+    const conversationIds = rows.map((r) => r.id)
 
-    const [{ data: listings }, { data: profiles }, { data: latestMessages }] = await Promise.all([
+    const [{ data: listings }, { data: profiles }, { data: allMessages }] = await Promise.all([
       supabase.from('listings').select('id, title, video_poster, make, model').in('id', listingIds),
       supabase.from('profiles').select('id, name, company_name, account_type').in('id', profileIds),
       supabase
         .from('messages')
-        .select('conversation_id, body, video_path, created_at')
-        .in(
-          'conversation_id',
-          rows.map((r) => r.id),
-        )
+        .select('conversation_id, body, video_path, created_at, sender_id')
+        .in('conversation_id', conversationIds)
         .order('created_at', { ascending: false }),
     ])
 
@@ -168,19 +180,33 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         l as { id: string; title: string; video_poster: string; make: string; model: string },
       ]),
     )
-    const profileMap = new Map(
-      (profiles ?? []).map((p) => [p.id, p as ProfileRow]),
-    )
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p as ProfileRow]))
 
-    const latestByConv = new Map<string, { body: string | null; video_path: string | null }>()
-    for (const msg of latestMessages ?? []) {
-      const m = msg as {
-        conversation_id: string
-        body: string | null
-        video_path: string | null
+    type MsgMeta = {
+      conversation_id: string
+      body: string | null
+      video_path: string | null
+      created_at: string
+      sender_id: string
+    }
+
+    const latestByConv = new Map<string, MsgMeta>()
+    const unreadByConv = new Map<string, number>()
+
+    for (const row of rows) {
+      unreadByConv.set(row.id, 0)
+    }
+
+    for (const msg of (allMessages ?? []) as MsgMeta[]) {
+      if (!latestByConv.has(msg.conversation_id)) {
+        latestByConv.set(msg.conversation_id, msg)
       }
-      if (!latestByConv.has(m.conversation_id)) {
-        latestByConv.set(m.conversation_id, m)
+      const conv = rows.find((r) => r.id === msg.conversation_id)
+      if (!conv) continue
+      if (msg.sender_id === user.id) continue
+      const readAt = lastReadAt(conv, user.id)
+      if (new Date(msg.created_at).getTime() > new Date(readAt).getTime()) {
+        unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) ?? 0) + 1)
       }
     }
 
@@ -205,6 +231,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         otherName,
         lastMessageAt: row.last_message_at,
         lastPreview: previewFromMessage(latestByConv.get(row.id)),
+        unreadCount: unreadByConv.get(row.id) ?? 0,
       }
     })
 
@@ -216,6 +243,34 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refreshConversations()
   }, [refreshConversations])
+
+  const markConversationRead = useCallback(async (conversationId: string) => {
+    if (!isSupabaseConfigured || !user) return
+
+    const { data } = await supabase
+      .from('conversations')
+      .select('buyer_id, seller_id')
+      .eq('id', conversationId)
+      .maybeSingle()
+
+    if (!data) return
+
+    const now = new Date().toISOString()
+    const updatePayload =
+      data.buyer_id === user.id
+        ? { buyer_last_read_at: now }
+        : data.seller_id === user.id
+          ? { seller_last_read_at: now }
+          : null
+
+    if (!updatePayload) return
+
+    await supabase.from('conversations').update(updatePayload).eq('id', conversationId)
+
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),
+    )
+  }, [user])
 
   const loadMessages = useCallback(async (conversationId: string) => {
     if (!isSupabaseConfigured) return
@@ -248,7 +303,8 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       return
     }
     void loadMessages(activeConversationId)
-  }, [activeConversationId, loadMessages])
+    void markConversationRead(activeConversationId)
+  }, [activeConversationId, loadMessages, markConversationRead])
 
   // Realtime for active conversation
   useEffect(() => {
@@ -278,7 +334,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
               return [...prev, msg]
             })
           })
-          void refreshConversations()
+          void markConversationRead(activeConversationId)
         },
       )
       .subscribe()
@@ -288,7 +344,49 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       void supabase.removeChannel(channel)
       if (channelRef.current === channel) channelRef.current = null
     }
-  }, [activeConversationId, refreshConversations])
+  }, [activeConversationId, markConversationRead])
+
+  // Global inbox realtime — badge updates when logged in
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user?.id) {
+      if (inboxChannelRef.current) {
+        void supabase.removeChannel(inboxChannelRef.current)
+        inboxChannelRef.current = null
+      }
+      return
+    }
+
+    const channel = supabase
+      .channel(`messages-inbox:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const row = payload.new as MessageRow
+          const uid = userIdRef.current
+          if (!uid || row.sender_id === uid) {
+            void refreshConversations()
+            return
+          }
+          if (activeIdRef.current === row.conversation_id) {
+            void markConversationRead(row.conversation_id)
+            return
+          }
+          void refreshConversations()
+        },
+      )
+      .subscribe()
+
+    inboxChannelRef.current = channel
+    return () => {
+      void supabase.removeChannel(channel)
+      if (inboxChannelRef.current === channel) inboxChannelRef.current = null
+    }
+  }, [user?.id, refreshConversations, markConversationRead])
 
   const openOrCreateConversation = useCallback(
     async (listing: Listing) => {
@@ -400,10 +498,11 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         if (prev.some((m) => m.id === mapped.id)) return prev
         return [...prev, mapped]
       })
+      await markConversationRead(input.conversationId)
       await refreshConversations()
       return {}
     },
-    [user, refreshConversations],
+    [user, refreshConversations, markConversationRead],
   )
 
   const getConversation = useCallback(
@@ -411,9 +510,15 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     [conversations],
   )
 
+  const unreadCount = useMemo(
+    () => conversations.reduce((sum, c) => sum + c.unreadCount, 0),
+    [conversations],
+  )
+
   const value = useMemo(
     () => ({
       conversations,
+      unreadCount,
       loadingConversations,
       conversationsError,
       refreshConversations,
@@ -423,11 +528,13 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       messagesError,
       activeConversationId,
       setActiveConversationId,
+      markConversationRead,
       sendMessage,
       getConversation,
     }),
     [
       conversations,
+      unreadCount,
       loadingConversations,
       conversationsError,
       refreshConversations,
@@ -436,6 +543,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       loadingMessages,
       messagesError,
       activeConversationId,
+      markConversationRead,
       sendMessage,
       getConversation,
     ],

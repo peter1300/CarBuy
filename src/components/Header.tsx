@@ -1,9 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useMessages } from '../context/MessagesContext'
 
 export function Header() {
   const { user, logout } = useAuth()
+  const { unreadCount } = useMessages()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -12,6 +14,8 @@ export function Header() {
 
   const displayName =
     user?.accountType === 'business' && user.companyName ? user.companyName : user?.name
+
+  const badgeLabel = unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : null
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -80,7 +84,38 @@ export function Header() {
         <div className="header-actions">
           {user ? (
             <>
-              <div className={`account-menu hide-mobile${accountOpen ? ' is-open' : ''}`} ref={accountRef}>
+              <Link
+                to="/uzenetek"
+                className="header-mail"
+                aria-label={
+                  unreadCount > 0 ? `Üzenetek, ${unreadCount} olvasatlan` : 'Üzenetek'
+                }
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <rect
+                    x="2.5"
+                    y="4.5"
+                    width="15"
+                    height="11"
+                    rx="2"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    d="M3.5 6.5L10 11l6.5-4.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {badgeLabel && <span className="header-mail__badge">{badgeLabel}</span>}
+              </Link>
+
+              <div
+                className={`account-menu hide-mobile${accountOpen ? ' is-open' : ''}`}
+                ref={accountRef}
+              >
                 <button
                   type="button"
                   className="header-user"
@@ -133,6 +168,7 @@ export function Header() {
                       onClick={closeAccount}
                     >
                       Üzenetek
+                      {unreadCount > 0 ? ` (${unreadCount})` : ''}
                     </Link>
                     <Link
                       to="/profil"
@@ -149,7 +185,7 @@ export function Header() {
                       className="account-dropdown__item account-dropdown__item--danger"
                       onClick={() => {
                         closeAccount()
-                        logout()
+                        void logout()
                       }}
                     >
                       Kilépés
@@ -180,11 +216,21 @@ export function Header() {
           >
             {menuOpen ? (
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path
+                  d="M5 5l10 10M15 5L5 15"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
               </svg>
             ) : (
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path
+                  d="M3.5 6h13M3.5 10h13M3.5 14h13"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
               </svg>
             )}
           </button>
@@ -205,6 +251,7 @@ export function Header() {
           <>
             <Link to="/uzenetek" onClick={closeMenu}>
               Üzenetek
+              {unreadCount > 0 ? ` (${unreadCount})` : ''}
             </Link>
             <p className="mobile-nav__label">{displayName}</p>
             <Link to="/profil/szerkesztes" onClick={closeMenu}>
@@ -221,7 +268,7 @@ export function Header() {
               className="btn btn--ghost"
               style={{ justifyContent: 'flex-start' }}
               onClick={() => {
-                logout()
+                void logout()
                 closeMenu()
               }}
             >

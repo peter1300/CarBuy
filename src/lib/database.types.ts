@@ -158,6 +158,8 @@ export type Database = {
           seller_id: string
           last_message_at: string
           created_at: string
+          buyer_last_read_at: string
+          seller_last_read_at: string
         }
         Insert: {
           id?: string
@@ -166,6 +168,8 @@ export type Database = {
           seller_id: string
           last_message_at?: string
           created_at?: string
+          buyer_last_read_at?: string
+          seller_last_read_at?: string
         }
         Update: {
           id?: string
@@ -174,6 +178,8 @@ export type Database = {
           seller_id?: string
           last_message_at?: string
           created_at?: string
+          buyer_last_read_at?: string
+          seller_last_read_at?: string
         }
         Relationships: []
       }

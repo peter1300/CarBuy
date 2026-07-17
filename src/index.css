@@ -1380,6 +1380,39 @@ a.btn {
   color: var(--text);
 }
 
+.header-mail {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 980px;
+  color: var(--text);
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.header-mail:hover {
+  background: var(--bg-muted);
+}
+
+.header-mail__badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e11d2e;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-elevated, #fff);
+}
+
 .account-menu {
   position: relative;
 }
@@ -3033,6 +3066,27 @@ a.btn {
   font-size: 0.8rem;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+
+.messages-thread__top strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.messages-thread__unread {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e11d2e;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .messages-thread__listing {
