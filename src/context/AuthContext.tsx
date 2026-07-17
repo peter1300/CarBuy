@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -44,6 +45,10 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function accountTypeFromMeta(meta: Record<string, unknown> | undefined): AccountType {
+  return meta?.account_type === 'business' ? 'business' : 'personal'
+}
+
 function mapProfile(row: ProfileRow): User {
   return {
     id: row.id,
@@ -55,45 +60,66 @@ function mapProfile(row: ProfileRow): User {
   }
 }
 
-async function fetchProfile(userId: string): Promise<User | null> {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-  if (error || !data) return null
-  return mapProfile(data)
-}
-
-async function ensureProfile(authUser: SupabaseUser): Promise<User | null> {
-  const existing = await fetchProfile(authUser.id)
-  if (existing) return existing
-
-  const meta = authUser.user_metadata ?? {}
+/** Fallback from Auth user — never treat a valid session as logged-out just because profile fetch failed. */
+function userFromAuth(authUser: SupabaseUser): User {
+  const meta = (authUser.user_metadata ?? {}) as Record<string, unknown>
   const name =
     (typeof meta.name === 'string' && meta.name) ||
     authUser.email?.split('@')[0] ||
     'Felhasználó'
-  const accountType: AccountType =
-    meta.account_type === 'business' ? 'business' : 'personal'
   const companyName =
-    typeof meta.company_name === 'string' && meta.company_name ? meta.company_name : null
+    typeof meta.company_name === 'string' && meta.company_name ? meta.company_name : undefined
 
+  return {
+    id: authUser.id,
+    name,
+    email: authUser.email ?? '',
+    accountType: accountTypeFromMeta(meta),
+    companyName,
+    sellerStatus: 'offline',
+  }
+}
+
+async function fetchProfile(userId: string): Promise<User | null> {
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+  if (error) {
+    console.warn('[CarBuy] profile fetch failed', error.message)
+    return null
+  }
+  return data ? mapProfile(data) : null
+}
+
+export async function ensureProfile(authUser: SupabaseUser): Promise<User> {
+  const existing = await fetchProfile(authUser.id)
+  if (existing) return existing
+
+  const fallback = userFromAuth(authUser)
   const { data, error } = await supabase
     .from('profiles')
-    .upsert({
-      id: authUser.id,
-      name,
-      email: authUser.email ?? '',
-      account_type: accountType,
-      company_name: companyName,
-    })
+    .upsert(
+      {
+        id: authUser.id,
+        name: fallback.name,
+        email: fallback.email,
+        account_type: fallback.accountType,
+        company_name: fallback.companyName ?? null,
+      },
+      { onConflict: 'id' },
+    )
     .select('*')
     .single()
 
-  if (error || !data) return null
+  if (error || !data) {
+    console.warn('[CarBuy] profile upsert failed', error?.message)
+    return fallback
+  }
   return mapProfile(data)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const profileRequestId = useRef(0)
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -103,31 +129,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let mounted = true
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const sessionUser = data.session?.user
-      if (!sessionUser) {
-        if (mounted) {
-          setUser(null)
-          setLoading(false)
-        }
+    const applySession = (sessionUser: SupabaseUser | null | undefined) => {
+      // Defer DB work: calling supabase.from() inside onAuthStateChange can deadlock
+      // the auth client and drop the session (looks like a random logout).
+      window.setTimeout(() => {
+        void (async () => {
+          if (!mounted) return
+
+          if (!sessionUser) {
+            setUser(null)
+            setLoading(false)
+            return
+          }
+
+          // Optimistic: keep session visible immediately
+          setUser((prev) => prev?.id === sessionUser.id ? prev : userFromAuth(sessionUser))
+
+          const requestId = ++profileRequestId.current
+          try {
+            const profile = await ensureProfile(sessionUser)
+            if (!mounted || requestId !== profileRequestId.current) return
+            setUser(profile)
+          } catch (err) {
+            console.warn('[CarBuy] ensureProfile error', err)
+            if (!mounted || requestId !== profileRequestId.current) return
+            setUser(userFromAuth(sessionUser))
+          } finally {
+            if (mounted && requestId === profileRequestId.current) {
+              setLoading(false)
+            }
+          }
+        })()
+      }, 0)
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        profileRequestId.current += 1
+        setUser(null)
+        setLoading(false)
         return
       }
-      const profile = await ensureProfile(sessionUser)
-      if (mounted) {
-        setUser(profile)
-        setLoading(false)
-      }
-    })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      void (async () => {
-        if (!session?.user) {
-          setUser(null)
-          return
-        }
-        const profile = await ensureProfile(session.user)
-        setUser(profile)
-      })()
+      // TOKEN_REFRESHED / INITIAL_SESSION / SIGNED_IN — keep user; refresh profile off-lock
+      applySession(session?.user)
     })
 
     return () => {
@@ -149,13 +194,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { data: signUpData, error } = await supabase.auth.signUp({
-        email: data.email,
+        email: data.email.trim(),
         password: data.password,
         options: {
           data: {
-            name: data.name,
+            name: data.name.trim(),
             account_type: data.accountType,
-            company_name: data.companyName ?? '',
+            company_name: data.companyName?.trim() ?? '',
           },
         },
       })
@@ -163,14 +208,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) return { error: error.message }
       if (!signUpData.user) return { error: 'Regisztráció sikertelen.' }
 
-      const profile = await ensureProfile(signUpData.user)
-      if (!profile) {
+      if (!signUpData.session) {
         return {
           error:
-            'Fiók létrejött, de a profil nem. Ellenőrizd az e-mail megerősítést a Supabase Auth beállításokban.',
+            'Fiók létrejött. Erősítsd meg az e-mailed (vagy kapcsold ki a megerősítést a Supabase Auth beállításokban), majd lépj be.',
         }
       }
+
+      const profile = await ensureProfile(signUpData.user)
       setUser(profile)
+      setLoading(false)
       return {}
     },
     [],
@@ -181,19 +228,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'Supabase nincs beállítva. Add meg a VITE_SUPABASE_* változókat.' }
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
     if (error) return { error: error.message }
-    if (!data.user) return { error: 'Belépés sikertelen.' }
+    if (!data.user || !data.session) return { error: 'Belépés sikertelen.' }
 
     const profile = await ensureProfile(data.user)
-    if (!profile) return { error: 'Profil nem található.' }
     setUser(profile)
+    setLoading(false)
     return {}
   }, [])
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut()
+    profileRequestId.current += 1
     setUser(null)
+    await supabase.auth.signOut()
   }, [])
 
   const updateProfile = useCallback(
@@ -201,13 +252,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) return { error: 'Nincs bejelentkezve.' }
       if (!isSupabaseConfigured) return { error: 'Supabase nincs beállítva.' }
 
+      // Ensure row exists before update (covers users created before trigger/migration)
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+      if (authUser) await ensureProfile(authUser)
+
       const { data: row, error } = await supabase
         .from('profiles')
         .update({
-          name: data.name,
-          email: data.email,
+          name: data.name.trim(),
+          email: data.email.trim(),
           company_name:
-            user.accountType === 'business' ? (data.companyName ?? null) : null,
+            user.accountType === 'business' ? (data.companyName?.trim() || null) : null,
         })
         .eq('id', user.id)
         .select('*')

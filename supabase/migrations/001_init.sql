@@ -84,13 +84,20 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_account_type text;
 begin
+  v_account_type := coalesce(new.raw_user_meta_data->>'account_type', 'personal');
+  if v_account_type not in ('personal', 'business') then
+    v_account_type := 'personal';
+  end if;
+
   insert into public.profiles (id, name, email, account_type, company_name)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1), 'Felhasználó'),
-    new.email,
-    coalesce(new.raw_user_meta_data->>'account_type', 'personal'),
+    coalesce(nullif(new.raw_user_meta_data->>'name', ''), split_part(new.email, '@', 1), 'Felhasználó'),
+    coalesce(new.email, ''),
+    v_account_type,
     nullif(new.raw_user_meta_data->>'company_name', '')
   )
   on conflict (id) do update set

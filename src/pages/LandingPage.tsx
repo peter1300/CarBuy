@@ -1,10 +1,25 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ListingCard } from '../components/ListingCard'
 import { SearchPanel } from '../components/SearchPanel'
 import { useListings } from '../context/ListingsContext'
 
+const HOME_LISTINGS_LIMIT = 8
+
 export function LandingPage() {
   const { listings, loading, error } = useListings()
+
+  const newestListings = useMemo(
+    () =>
+      [...listings]
+        .sort((a, b) => {
+          const aTime = a.createdAt ? Date.parse(a.createdAt) : 0
+          const bTime = b.createdAt ? Date.parse(b.createdAt) : 0
+          return bTime - aTime
+        })
+        .slice(0, HOME_LISTINGS_LIMIT),
+    [listings],
+  )
 
   return (
     <main className="page">
@@ -38,12 +53,12 @@ export function LandingPage() {
 
           {loading && <p className="state-message">Hirdetések betöltése…</p>}
           {error && !loading && <p className="form-error">{error}</p>}
-          {!loading && !error && listings.length === 0 && (
+          {!loading && !error && newestListings.length === 0 && (
             <p className="state-message">Még nincsenek hirdetések. Légy te az első!</p>
           )}
-          {!loading && listings.length > 0 && (
+          {!loading && newestListings.length > 0 && (
             <div className="listings-grid">
-              {listings.map((listing) => (
+              {newestListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>

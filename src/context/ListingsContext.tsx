@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Listing, SellerStatus } from '../data/listings'
-import type { User } from './AuthContext'
+import { ensureProfile, type User } from './AuthContext'
 import { createListingId } from '../lib/listingUrl'
 import { mapListingRow } from '../lib/mapListing'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -85,7 +85,13 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       setListings([])
     } else {
       setError(null)
-      setListings((data ?? []).map(mapListingRow))
+      const mapped = (data ?? []).map(mapListingRow)
+      mapped.sort((a, b) => {
+        const aTime = a.createdAt ? Date.parse(a.createdAt) : 0
+        const bTime = b.createdAt ? Date.parse(b.createdAt) : 0
+        return bTime - aTime
+      })
+      setListings(mapped)
     }
     setLoading(false)
   }, [])
@@ -95,14 +101,28 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   }, [refreshListings])
 
   const addListing = useCallback(
-    async (user: User, input: UserListingInput) => {
+    async (_user: User, input: UserListingInput) => {
       if (!isSupabaseConfigured) {
         throw new Error('Supabase nincs beállítva.')
       }
 
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser()
+      if (authError || !authUser) {
+        throw new Error('A munkamenet lejárt. Lépj be újra, majd próbáld meg ismét.')
+      }
+
+      // Profile row is required (FK + RLS). Create/repair before insert.
+      const profile = await ensureProfile(authUser)
+      const ownerId = profile.id
+
       const id = createListingId()
       const sellerName =
-        user.accountType === 'business' && user.companyName ? user.companyName : user.name
+        profile.accountType === 'business' && profile.companyName
+          ? profile.companyName
+          : profile.name
       const description =
         input.description ||
         'Videós bemutatóval feltöltött hirdetés. Élő hívásban bármit megmutatunk.'
@@ -120,7 +140,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         .from('listings')
         .insert({
           id,
-          owner_id: user.id,
+          owner_id: ownerId,
           is_demo: false,
           title: input.title,
           make: input.make,
@@ -138,7 +158,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           features,
           specs,
           seller_name: sellerName,
-          seller_type: user.accountType === 'business' ? 'dealer' : 'private',
+          seller_type: profile.accountType === 'business' ? 'dealer' : 'private',
           seller_status: input.status,
           seller_rating: 5.0,
           seller_response_time: '< 5 perc',
@@ -148,7 +168,13 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (insertError || !data) {
-        throw new Error(insertError?.message ?? 'Hirdetés mentése sikertelen.')
+        const msg = insertError?.message ?? 'Hirdetés mentése sikertelen.'
+        if (/row-level security|RLS|permission denied|violates foreign key/i.test(msg)) {
+          throw new Error(
+            'A hirdetés mentése az adatbázisban meghiúsult. Futtasd a supabase/migrations/002_auth_grants_fix.sql fájlt a Supabase SQL Editorban, majd próbáld újra.',
+          )
+        }
+        throw new Error(msg)
       }
 
       const listing = mapListingRow(data)

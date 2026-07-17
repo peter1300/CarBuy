@@ -3,10 +3,20 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export function SettingsPage() {
-  const { user, logout } = useAuth()
+  const { user, loading, logout } = useAuth()
   const [emailNotif, setEmailNotif] = useState(true)
   const [callNotif, setCallNotif] = useState(true)
   const [autoOnline, setAutoOnline] = useState(false)
+
+  if (loading) {
+    return (
+      <main className="page account-page">
+        <div className="container">
+          <p className="state-message">Betöltés…</p>
+        </div>
+      </main>
+    )
+  }
 
   if (!user) {
     return <Navigate to="/belepes" replace />

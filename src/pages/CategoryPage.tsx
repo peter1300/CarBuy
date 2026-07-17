@@ -1,18 +1,31 @@
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ListingCard } from '../components/ListingCard'
 import { useListings } from '../context/ListingsContext'
 import { slugifySegment } from '../lib/listingUrl'
+
+function byNewest(a: { createdAt?: string }, b: { createdAt?: string }) {
+  const aTime = a.createdAt ? Date.parse(a.createdAt) : 0
+  const bTime = b.createdAt ? Date.parse(b.createdAt) : 0
+  return bTime - aTime
+}
 
 /** /szemelyauto, /szemelyauto/:make, /szemelyauto/:make/:model — szűrt listák */
 export function CategoryPage() {
   const { make, model } = useParams<{ make?: string; model?: string }>()
   const { listings, loading, error } = useListings()
 
-  const filtered = listings.filter((listing) => {
-    if (make && slugifySegment(listing.make) !== make) return false
-    if (model && slugifySegment(listing.model) !== model) return false
-    return true
-  })
+  const filtered = useMemo(
+    () =>
+      listings
+        .filter((listing) => {
+          if (make && slugifySegment(listing.make) !== make) return false
+          if (model && slugifySegment(listing.model) !== model) return false
+          return true
+        })
+        .sort(byNewest),
+    [listings, make, model],
+  )
 
   const title = model
     ? filtered[0]
