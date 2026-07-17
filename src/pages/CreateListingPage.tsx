@@ -13,9 +13,10 @@ import type { Listing } from '../data/listings'
 
 const STEPS = [
   { id: 1, label: 'Videó', hint: 'A meggyőző első benyomás' },
-  { id: 2, label: 'Adatok', hint: 'Pontos, átlátható részletek' },
-  { id: 3, label: 'Ár', hint: 'Érdeklődők azonnal látják' },
-  { id: 4, label: 'Közzététel', hint: 'Élő bemutatás készen' },
+  { id: 2, label: 'Hibák', hint: 'Őszinteség, ami meggyőz' },
+  { id: 3, label: 'Adatok', hint: 'Pontos, átlátható részletek' },
+  { id: 4, label: 'Ár', hint: 'Érdeklődők azonnal látják' },
+  { id: 5, label: 'Közzététel', hint: 'Élő bemutatás készen' },
 ] as const
 
 export function CreateListingPage() {
@@ -30,6 +31,10 @@ export function CreateListingPage() {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
+  const [flawsVideoFile, setFlawsVideoFile] = useState<File | null>(null)
+  const [flawsPreviewUrl, setFlawsPreviewUrl] = useState<string | null>(null)
+  const [flawsError, setFlawsError] = useState<string | null>(null)
+  const flawsInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [make, setMake] = useState('')
   const [model, setModel] = useState('')
@@ -55,6 +60,16 @@ export function CreateListingPage() {
     setVideoPreviewUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [videoFile])
+
+  useEffect(() => {
+    if (!flawsVideoFile) {
+      setFlawsPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(flawsVideoFile)
+    setFlawsPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [flawsVideoFile])
 
   useEffect(() => {
     if (make && model && !modelsForMake.includes(model)) {
@@ -90,6 +105,11 @@ export function CreateListingPage() {
       setStep(1)
       return
     }
+    if (!flawsVideoFile) {
+      setPublishError('Tölts fel egy videót a hibákról is.')
+      setStep(2)
+      return
+    }
     setPublishError(null)
     setPublishing(true)
     try {
@@ -106,6 +126,7 @@ export function CreateListingPage() {
         location: location || '—',
         description,
         videoFile,
+        flawsVideoFile,
         status: goOnline ? 'online' : 'offline',
       })
       setPublishedListing(listing)
@@ -133,6 +154,25 @@ export function CreateListingPage() {
       return
     }
     setVideoFile(file)
+  }
+
+  const onPickFlawsVideo = (file: File | null) => {
+    setFlawsError(null)
+    if (!file) {
+      setFlawsVideoFile(null)
+      return
+    }
+    if (!ALLOWED_LISTING_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])) {
+      setFlawsError('Csak MP4, WebM vagy MOV fájl tölthető fel.')
+      setFlawsVideoFile(null)
+      return
+    }
+    if (file.size > MAX_LISTING_VIDEO_BYTES) {
+      setFlawsError('A videó maximum 100 MB lehet.')
+      setFlawsVideoFile(null)
+      return
+    }
+    setFlawsVideoFile(file)
   }
 
   if (publishedListing) {
@@ -294,6 +334,74 @@ export function CreateListingPage() {
 
             {step === 2 && (
               <div className="create-step">
+                <h2>Hibák — őszintén</h2>
+                <p className="create-step__lead">
+                  Minden használtautón vannak hibák. Ha őszintén megmutatod őket, a vevő inkább
+                  bízik benned — és kevésbé jön meglepetésként bármi az átadáskor.
+                </p>
+
+                <input
+                  ref={flawsInputRef}
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  className="sr-only"
+                  onChange={(e) => onPickFlawsVideo(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  className={`video-dropzone${flawsVideoFile ? ' is-filled' : ''}`}
+                  onClick={() => flawsInputRef.current?.click()}
+                >
+                  {flawsVideoFile && flawsPreviewUrl ? (
+                    <>
+                      <video
+                        className="video-dropzone__preview"
+                        src={flawsPreviewUrl}
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <strong>{flawsVideoFile.name}</strong>
+                      <span>
+                        {(flawsVideoFile.size / (1024 * 1024)).toFixed(1)} MB · kattints másik
+                        videóhoz
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="video-dropzone__icon" aria-hidden="true">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                          <rect
+                            x="6"
+                            y="10"
+                            width="28"
+                            height="20"
+                            rx="3"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                          <path d="M17 16.5v7l7-3.5-7-3.5z" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <strong>Hibák videó feltöltése</strong>
+                      <span>Karcok, kopások, apró esztétikai hibák · max. 100 MB</span>
+                    </>
+                  )}
+                </button>
+                {flawsError && <p className="form-error">{flawsError}</p>}
+
+                <div className="honesty-note">
+                  <strong>Miért érdemes?</strong>
+                  <p>
+                    A vevő látja, hogy nem takargatsz semmit. Ez gyakran erősebb bizalomépítő, mint
+                    egy tökéletesnek tűnő bemutató.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="create-step">
                 <h2>Autó adatai</h2>
                 <p className="create-step__lead">
                   Minél pontosabb, annál kevesebb felesleges kérdés — több idő élő bemutatóra.
@@ -443,7 +551,7 @@ export function CreateListingPage() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="create-step">
                 <h2>Ár és elérhetőség</h2>
                 <p className="create-step__lead">
@@ -494,7 +602,7 @@ export function CreateListingPage() {
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="create-step">
                 <h2>Áttekintés</h2>
                 <p className="create-step__lead">
@@ -523,6 +631,10 @@ export function CreateListingPage() {
                         .join(' · ') || 'Adatok kitöltése folyamatban'}
                     </p>
                     <p className="preview-card__status">
+                      Hibák videó:{' '}
+                      <strong>{flawsVideoFile ? flawsVideoFile.name : 'Hiányzik'}</strong>
+                    </p>
+                    <p className="preview-card__status">
                       Státusz közzétételkor:{' '}
                       <strong>{goOnline ? 'Online' : 'Offline'}</strong>
                     </p>
@@ -544,7 +656,11 @@ export function CreateListingPage() {
                 <button
                   type="submit"
                   className="btn btn--accent btn--lg"
-                  disabled={(step === 1 && !videoFile) || publishing}
+                  disabled={
+                    (step === 1 && !videoFile) ||
+                    (step === 2 && !flawsVideoFile) ||
+                    publishing
+                  }
                 >
                   {publishing
                     ? 'Közzététel…'
@@ -561,18 +677,21 @@ export function CreateListingPage() {
               <p className="persuade-card__kicker">{STEPS[step - 1].hint}</p>
               <h3>
                 {step === 1 && 'A videó elad helyetted.'}
-                {step === 2 && 'A részletek szűrik a komoly vevőket.'}
-                {step === 3 && 'Az ár + Online státusz = sebesség.'}
-                {step === 4 && 'Készen állsz a bemutatásra.'}
+                {step === 2 && 'Az őszinteség meggyőz.'}
+                {step === 3 && 'A részletek szűrik a komoly vevőket.'}
+                {step === 4 && 'Az ár + Online státusz = sebesség.'}
+                {step === 5 && 'Készen állsz a bemutatásra.'}
               </h3>
               <p>
                 {step === 1 &&
                   'A vevők 3× szívesebben érdeklődnek, ha mozgásban látják az autót — kevesebb „még van-e?” üzenet, több élő hívás.'}
                 {step === 2 &&
-                  'Pontos adatok = kevesebb félreértés. A videóhívás ideje a bemutatásra megy, nem az alapkérdésekre.'}
+                  'Minden használtautón vannak hibák. Ha megmutatod őket, a vevő látja: nem takargatsz semmit — és könnyebben dönt.'}
                 {step === 3 &&
-                  'Hívni csak Online státuszban lehet. Kapcsold be, ha ott vagy az autónál — és kapcsold ki, ha nem.'}
+                  'Pontos adatok = kevesebb félreértés. A videóhívás ideje a bemutatásra megy, nem az alapkérdésekre.'}
                 {step === 4 &&
+                  'Hívni csak Online státuszban lehet. Kapcsold be, ha ott vagy az autónál — és kapcsold ki, ha nem.'}
+                {step === 5 &&
                   'Közzététel után a hirdetésed megjelenik a keresőben. Online állapotban azonnal fogadhatsz hang- és videóhívást.'}
               </p>
               <ul className="persuade-card__stats">

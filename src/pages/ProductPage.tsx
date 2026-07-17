@@ -173,6 +173,24 @@ export function ProductPage() {
                 ))}
               </div>
             </section>
+
+            {listing.flawsVideoUrl && (
+              <section className="flaws-panel" aria-labelledby="flaws-title">
+                <h2 id="flaws-title">Őszinte pillantás a hibákra</h2>
+                <p className="flaws-panel__lead">
+                  Mindegyik használtautón vannak esztétikai hibák, ettől ne ijedj meg! Te most egy
+                  őszinte eladót találtál.
+                </p>
+                <div className="flaws-panel__video">
+                  <video
+                    src={listing.flawsVideoUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                  />
+                </div>
+              </section>
+            )}
           </div>
 
           <aside className="product__aside">

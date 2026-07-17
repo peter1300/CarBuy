@@ -76,6 +76,7 @@ export type Database = {
           unique_views: number
           created_at: string
           video_url: string | null
+          flaws_video_url: string | null
         }
         Insert: {
           id: string
@@ -104,6 +105,7 @@ export type Database = {
           unique_views?: number
           created_at?: string
           video_url?: string | null
+          flaws_video_url?: string | null
         }
         Update: {
           id?: string
@@ -132,6 +134,7 @@ export type Database = {
           unique_views?: number
           created_at?: string
           video_url?: string | null
+          flaws_video_url?: string | null
         }
         Relationships: []
       }
