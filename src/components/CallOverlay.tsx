@@ -6,6 +6,7 @@ export function CallOverlay() {
   const {
     call,
     localStream,
+    remoteStream,
     endCall,
     acceptIncoming,
     rejectIncoming,
@@ -13,6 +14,8 @@ export function CallOverlay() {
     toggleCamera,
   } = useCall()
   const localVideoRef = useRef<HTMLVideoElement>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement>(null)
+  const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -20,6 +23,11 @@ export function CallOverlay() {
     if (!el) return
     el.srcObject = localStream
   }, [localStream, call?.phase])
+
+  useEffect(() => {
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
+  }, [remoteStream, call?.phase])
 
   useEffect(() => {
     if (!call) return
@@ -40,6 +48,11 @@ export function CallOverlay() {
 
   const isIncoming = call.direction === 'incoming' && call.phase === 'ringing'
   const isVideo = call.mode === 'video'
+  const showRemoteVideo =
+    Boolean(remoteStream) &&
+    isVideo &&
+    call.phase === 'connected' &&
+    remoteStream!.getVideoTracks().length > 0
   const liveDuration =
     call.phase === 'connected' && call.startedAt
       ? formatCallDuration(now - call.startedAt)
@@ -55,7 +68,9 @@ export function CallOverlay() {
           : call.phase === 'connecting'
             ? 'Csatlakozás…'
             : call.phase === 'connected'
-              ? 'Kapcsolatban'
+              ? remoteStream
+                ? 'Kapcsolatban'
+                : 'Kapcsolódás a másik félhez…'
               : call.phase === 'failed'
                 ? 'Sikertelen'
                 : 'Befejezve'
@@ -64,11 +79,12 @@ export function CallOverlay() {
     <div className="call-overlay" role="dialog" aria-modal="true" aria-label="Hívás">
       <div className="call-overlay__stage">
         <div className="call-overlay__remote">
-          {call.remote.avatarUrl && isVideo && call.phase === 'connected' ? (
-            <img
-              src={call.remote.avatarUrl}
-              alt=""
+          {showRemoteVideo ? (
+            <video
+              ref={remoteVideoRef}
               className="call-overlay__remote-media"
+              autoPlay
+              playsInline
             />
           ) : (
             <div className="call-overlay__avatar-wrap">
@@ -77,8 +93,9 @@ export function CallOverlay() {
               </div>
             </div>
           )}
+          {remoteStream && !isVideo && <audio ref={remoteAudioRef} autoPlay />}
           <div className="call-overlay__remote-shade" />
-          {call.phase === 'connected' && isVideo && (
+          {call.phase === 'connected' && remoteStream && (
             <div className="call-overlay__live-badge">Élő kapcsolat</div>
           )}
         </div>

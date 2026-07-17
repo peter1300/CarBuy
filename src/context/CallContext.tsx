@@ -14,6 +14,7 @@ import {
   callInboxChannel,
   callSessionChannel,
   getMediaStream,
+  ICE_SERVERS,
   stopMediaStream,
   type ActiveCall,
   type CallMode,
@@ -31,6 +32,7 @@ type StartCallArgs = {
 type CallContextValue = {
   call: ActiveCall | null
   localStream: MediaStream | null
+  remoteStream: MediaStream | null
   startCall: (args: StartCallArgs) => Promise<void>
   acceptIncoming: () => Promise<void>
   rejectIncoming: () => void
@@ -84,13 +86,19 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [call, setCall] = useState<ActiveCall | null>(null)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
 
   const callRef = useRef<ActiveCall | null>(null)
   const userRef = useRef(user)
+  const localStreamRef = useRef<MediaStream | null>(null)
   const pendingInviteRef = useRef<CallSignalPayload | null>(null)
+  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null)
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([])
   const ringTimerRef = useRef<number | null>(null)
   const inboxRef = useRef<RealtimeChannel | null>(null)
   const sessionRef = useRef<RealtimeChannel | null>(null)
+  const pcRef = useRef<RTCPeerConnection | null>(null)
+  const signalHandlerRef = useRef<(data: CallSignalPayload) => void>(() => {})
 
   useEffect(() => {
     callRef.current = call
@@ -100,6 +108,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     userRef.current = user
   }, [user])
 
+  useEffect(() => {
+    localStreamRef.current = localStream
+  }, [localStream])
+
   const clearRingTimer = useCallback(() => {
     if (ringTimerRef.current) {
       window.clearTimeout(ringTimerRef.current)
@@ -107,12 +119,22 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const closePeer = useCallback(() => {
+    pcRef.current?.close()
+    pcRef.current = null
+    pendingOfferRef.current = null
+    pendingIceRef.current = []
+    setRemoteStream(null)
+  }, [])
+
   const cleanupMedia = useCallback(() => {
+    closePeer()
     setLocalStream((prev) => {
       stopMediaStream(prev)
       return null
     })
-  }, [])
+    localStreamRef.current = null
+  }, [closePeer])
 
   const leaveSession = useCallback(async () => {
     const ch = sessionRef.current
@@ -137,6 +159,132 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const baseSignal = useCallback(
+    (type: CallSignalPayload['type'], extra: Partial<CallSignalPayload> = {}): CallSignalPayload | null => {
+      const current = callRef.current
+      const invite = pendingInviteRef.current
+      if (!current && !invite) return null
+      return {
+        type,
+        callId: current?.id ?? invite!.callId,
+        listingId: current?.listingId ?? invite!.listingId,
+        listingTitle: current?.listingTitle ?? invite!.listingTitle,
+        mode: current?.mode ?? invite!.mode,
+        fromName: userRef.current?.name ?? 'Felhasználó',
+        fromUserId: userRef.current?.id,
+        ownerId: invite?.ownerId,
+        ...extra,
+      }
+    },
+    [],
+  )
+
+  const flushIce = useCallback(async (pc: RTCPeerConnection) => {
+    const queued = pendingIceRef.current
+    pendingIceRef.current = []
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(candidate)
+      } catch (err) {
+        console.warn('[CarBuy] queued ICE failed', err)
+      }
+    }
+  }, [])
+
+  const createPeer = useCallback(
+    (stream: MediaStream) => {
+      closePeer()
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+      pcRef.current = pc
+
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream)
+      })
+
+      pc.ontrack = (event) => {
+        if (event.streams[0]) {
+          setRemoteStream(event.streams[0])
+          return
+        }
+        setRemoteStream((prev) => {
+          const next = prev ?? new MediaStream()
+          next.addTrack(event.track)
+          return next
+        })
+      }
+
+      pc.onicecandidate = (event) => {
+        if (!event.candidate || !sessionRef.current) return
+        const payload = baseSignal('ice', { candidate: event.candidate.toJSON() })
+        if (payload) void sendSignal(sessionRef.current, payload)
+      }
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed') {
+          setCall((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  phase: 'failed',
+                  error: 'A peer kapcsolat megszakadt. Próbáld újra.',
+                }
+              : prev,
+          )
+        }
+      }
+
+      return pc
+    },
+    [baseSignal, closePeer, sendSignal],
+  )
+
+  const startAsOfferer = useCallback(async () => {
+    const stream = localStreamRef.current
+    const current = callRef.current
+    if (!stream || !current || !sessionRef.current) return
+
+    const pc = createPeer(stream)
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    await flushIce(pc)
+
+    const payload = baseSignal('offer', { sdp: pc.localDescription ?? offer })
+    if (payload) await sendSignal(sessionRef.current, payload)
+  }, [baseSignal, createPeer, flushIce, sendSignal])
+
+  const applyRemoteOffer = useCallback(
+    async (sdp: RTCSessionDescriptionInit) => {
+      const stream = localStreamRef.current
+      if (!stream || !sessionRef.current) {
+        pendingOfferRef.current = sdp
+        return
+      }
+
+      let pc = pcRef.current
+      if (!pc) pc = createPeer(stream)
+
+      await pc.setRemoteDescription(sdp)
+      await flushIce(pc)
+
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+
+      const payload = baseSignal('answer', { sdp: pc.localDescription ?? answer })
+      if (payload) await sendSignal(sessionRef.current, payload)
+
+      setCall((prev) =>
+        prev
+          ? {
+              ...prev,
+              phase: 'connected',
+              startedAt: prev.startedAt ?? Date.now(),
+            }
+          : prev,
+      )
+    },
+    [baseSignal, createPeer, flushIce, sendSignal],
+  )
+
   const joinSession = useCallback(
     async (callId: string) => {
       await leaveSession()
@@ -153,21 +301,23 @@ export function CallProvider({ children }: { children: ReactNode }) {
     [leaveSession],
   )
 
-  const signalHandlerRef = useRef<(data: CallSignalPayload) => void>(() => {})
-
   signalHandlerRef.current = (data: CallSignalPayload) => {
     if (!data?.type || !data.callId) return
 
     const currentUser = userRef.current
     const currentCall = callRef.current
 
+    if (data.fromUserId && currentUser && data.fromUserId === currentUser.id) {
+      if (data.type === 'invite' || data.type === 'offer' || data.type === 'answer' || data.type === 'ice') {
+        return
+      }
+    }
+
     if (data.type === 'invite') {
-      if (data.fromUserId && currentUser && data.fromUserId === currentUser.id) return
       if (!currentUser || !data.ownerId || data.ownerId !== currentUser.id) return
       if (currentCall) return
 
       pendingInviteRef.current = data
-
       void joinSession(data.callId).catch((err) => {
         console.warn('[CarBuy] failed to join call session', err)
       })
@@ -191,10 +341,65 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.type === 'accept') {
+      if (!currentCall || currentCall.id !== data.callId || currentCall.direction !== 'outgoing') return
       clearRingTimer()
-      setCall((prev) => {
-        if (!prev || prev.id !== data.callId || prev.direction !== 'outgoing') return prev
-        return { ...prev, phase: 'connected', startedAt: Date.now() }
+      setCall((prev) =>
+        prev
+          ? { ...prev, phase: 'connecting' }
+          : prev,
+      )
+      void startAsOfferer()
+        .then(() => {
+          setCall((prev) =>
+            prev && prev.id === data.callId
+              ? { ...prev, phase: 'connected', startedAt: Date.now() }
+              : prev,
+          )
+        })
+        .catch((err) => {
+          console.warn('[CarBuy] offer failed', err)
+          setCall((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  phase: 'failed',
+                  error: 'Nem sikerült felépíteni a videókapcsolatot.',
+                }
+              : prev,
+          )
+        })
+      return
+    }
+
+    if (data.type === 'offer' && data.sdp) {
+      if (!currentCall || currentCall.id !== data.callId) {
+        pendingOfferRef.current = data.sdp
+        return
+      }
+      void applyRemoteOffer(data.sdp).catch((err) => {
+        console.warn('[CarBuy] answer failed', err)
+      })
+      return
+    }
+
+    if (data.type === 'answer' && data.sdp) {
+      const pc = pcRef.current
+      if (!pc || !currentCall || currentCall.id !== data.callId) return
+      void pc
+        .setRemoteDescription(data.sdp)
+        .then(() => flushIce(pc))
+        .catch((err) => console.warn('[CarBuy] setRemote answer failed', err))
+      return
+    }
+
+    if (data.type === 'ice' && data.candidate) {
+      const pc = pcRef.current
+      if (!pc || !pc.remoteDescription) {
+        pendingIceRef.current.push(data.candidate)
+        return
+      }
+      void pc.addIceCandidate(data.candidate).catch((err) => {
+        console.warn('[CarBuy] ICE failed', err)
       })
       return
     }
@@ -214,7 +419,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Seller inbox while logged in
   useEffect(() => {
     if (!isSupabaseConfigured || !user?.id) {
       if (inboxRef.current) {
@@ -263,18 +467,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const endCall = useCallback(() => {
     clearRingTimer()
-    const current = callRef.current
-    if (current && sessionRef.current) {
-      void sendSignal(sessionRef.current, {
-        type: 'end',
-        callId: current.id,
-        listingId: current.listingId,
-        listingTitle: current.listingTitle,
-        mode: current.mode,
-        fromName: userRef.current?.name ?? 'Felhasználó',
-        fromUserId: userRef.current?.id,
-        ownerId: pendingInviteRef.current?.ownerId,
-      })
+    const payload = baseSignal('end')
+    if (payload && sessionRef.current) {
+      void sendSignal(sessionRef.current, payload)
     }
 
     pendingInviteRef.current = null
@@ -282,7 +477,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     void leaveSession()
     setCall((prev) => (prev ? { ...prev, phase: 'ended' } : null))
     window.setTimeout(() => setCall(null), 900)
-  }, [cleanupMedia, clearRingTimer, leaveSession, sendSignal])
+  }, [baseSignal, cleanupMedia, clearRingTimer, leaveSession, sendSignal])
 
   const startCall = useCallback(
     async ({ listing, mode }: StartCallArgs) => {
@@ -334,6 +529,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       try {
         const stream = await getMediaStream(mode)
+        localStreamRef.current = stream
         setLocalStream(stream)
       } catch {
         showFailed(
@@ -406,34 +602,43 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const current = callRef.current
     if (!invite || !current || current.direction !== 'incoming') return
 
-    if (sessionRef.current) {
-      await sendSignal(sessionRef.current, {
-        type: 'accept',
-        callId: invite.callId,
-        listingId: invite.listingId,
-        listingTitle: invite.listingTitle,
-        mode: invite.mode,
-        fromName: userRef.current?.name ?? 'Hirdető',
-        fromUserId: userRef.current?.id,
-        ownerId: invite.ownerId,
-      })
-    }
-
     setCall((prev) => (prev ? { ...prev, phase: 'connecting' } : prev))
 
     try {
       const stream = await getMediaStream(invite.mode)
+      localStreamRef.current = stream
       setLocalStream(stream)
-      setCall((prev) =>
-        prev
-          ? {
-              ...prev,
-              phase: 'connected',
-              startedAt: Date.now(),
-              cameraOff: invite.mode === 'audio',
-            }
-          : prev,
-      )
+      createPeer(stream)
+
+      if (sessionRef.current) {
+        await sendSignal(sessionRef.current, {
+          type: 'accept',
+          callId: invite.callId,
+          listingId: invite.listingId,
+          listingTitle: invite.listingTitle,
+          mode: invite.mode,
+          fromName: userRef.current?.name ?? 'Hirdető',
+          fromUserId: userRef.current?.id,
+          ownerId: invite.ownerId,
+        })
+      }
+
+      if (pendingOfferRef.current) {
+        const sdp = pendingOfferRef.current
+        pendingOfferRef.current = null
+        await applyRemoteOffer(sdp)
+      } else {
+        setCall((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: 'connected',
+                startedAt: Date.now(),
+                cameraOff: invite.mode === 'audio',
+              }
+            : prev,
+        )
+      }
     } catch {
       setCall((prev) =>
         prev
@@ -446,7 +651,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       )
       window.setTimeout(() => setCall(null), 2800)
     }
-  }, [sendSignal])
+  }, [applyRemoteOffer, createPeer, sendSignal])
 
   const rejectIncoming = useCallback(() => {
     const invite = pendingInviteRef.current
@@ -509,6 +714,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     () => ({
       call,
       localStream,
+      remoteStream,
       startCall,
       acceptIncoming,
       rejectIncoming,
@@ -519,6 +725,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     [
       call,
       localStream,
+      remoteStream,
       startCall,
       acceptIncoming,
       rejectIncoming,

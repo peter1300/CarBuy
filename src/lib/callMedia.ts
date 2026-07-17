@@ -31,7 +31,7 @@ export type ActiveCall = {
 }
 
 export type CallSignalPayload = {
-  type: 'invite' | 'accept' | 'reject' | 'end'
+  type: 'invite' | 'accept' | 'reject' | 'end' | 'offer' | 'answer' | 'ice'
   callId: string
   listingId: string
   listingTitle: string
@@ -39,6 +39,8 @@ export type CallSignalPayload = {
   fromName: string
   fromUserId?: string
   ownerId?: string
+  sdp?: RTCSessionDescriptionInit
+  candidate?: RTCIceCandidateInit
 }
 
 /** Inbox channel for a seller — they must be subscribed while logged in. */
@@ -50,6 +52,11 @@ export function callInboxChannel(userId: string) {
 export function callSessionChannel(callId: string) {
   return `call-session:${callId}`
 }
+
+export const ICE_SERVERS: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+]
 
 export async function getMediaStream(mode: CallMode): Promise<MediaStream> {
   return navigator.mediaDevices.getUserMedia({
