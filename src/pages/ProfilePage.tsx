@@ -2,7 +2,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
-import { formatMileage, formatPrice } from '../data/listings'
+import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
 import { StatusBadge } from '../components/StatusBadge'
 
@@ -109,7 +109,7 @@ export function ProfilePage() {
                     <div className="profile-listing__top">
                       <div>
                         <Link to={listingPath(listing)} className="profile-listing__title">
-                          {listing.title}
+                          {formatListingTitle(listing)}
                         </Link>
                         <p className="profile-listing__meta">
                           {listing.year} · {formatMileage(listing.mileage)} · {listing.fuel} ·{' '}

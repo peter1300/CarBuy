@@ -1,6 +1,6 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { formatMileage, formatPrice } from '../data/listings'
+import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import { StatusBadge } from '../components/StatusBadge'
 import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
@@ -59,6 +59,7 @@ export function ProductPage() {
   }
 
   const canCall = listing.seller.status === 'online' && !call
+  const displayTitle = formatListingTitle(listing)
 
   const hint =
     listing.seller.status === 'online'
@@ -127,7 +128,7 @@ export function ProductPage() {
                 />
               ) : (
                 <>
-                  <img src={listing.videoPoster} alt={`${listing.title} videó`} />
+                  <img src={listing.videoPoster} alt={`${displayTitle} videó`} />
                   <div className="product-video__overlay">
                     <span className="product-video__label">Videós bemutató</span>
                   </div>
@@ -137,7 +138,7 @@ export function ProductPage() {
             </div>
 
             <div className="product-info">
-              <h1>{listing.title}</h1>
+              <h1>{displayTitle}</h1>
               <p className="product-info__price">{formatPrice(listing.price)}</p>
               <div className="product-info__chips">
                 <span className="chip">{listing.year}</span>

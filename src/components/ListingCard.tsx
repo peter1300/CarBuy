@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Listing } from '../data/listings'
-import { formatMileage, formatPrice } from '../data/listings'
+import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
 import { StatusBadge } from './StatusBadge'
 
@@ -9,10 +9,12 @@ type Props = {
 }
 
 export function ListingCard({ listing }: Props) {
+  const displayTitle = formatListingTitle(listing)
+
   return (
     <Link to={listingPath(listing)} className="listing-card">
       <div className="listing-card__media">
-        <img src={listing.videoPoster} alt={`${listing.title} videó előnézet`} loading="lazy" />
+        <img src={listing.videoPoster} alt={`${displayTitle} videó előnézet`} loading="lazy" />
         <div className="listing-card__play">
           <span className="play-btn" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -24,7 +26,7 @@ export function ListingCard({ listing }: Props) {
       </div>
       <div className="listing-card__body">
         <div className="listing-card__top">
-          <h3 className="listing-card__title">{listing.title}</h3>
+          <h3 className="listing-card__title">{displayTitle}</h3>
           <p className="listing-card__price">{formatPrice(listing.price)}</p>
         </div>
         <div className="listing-card__meta">

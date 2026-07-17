@@ -46,3 +46,26 @@ export function formatPrice(price: number): string {
 export function formatMileage(km: number): string {
   return `${new Intl.NumberFormat('hu-HU').format(km)} km`
 }
+
+/** Megjelenített cím: Márka + Modell + Hirdetés címe */
+export function formatListingTitle(listing: {
+  make: string
+  model: string
+  title: string
+}): string {
+  const make = listing.make.trim()
+  const model = listing.model.trim()
+  const title = listing.title.trim()
+  const prefix = [make, model].filter((part) => part && part !== '—').join(' ')
+
+  if (!prefix) return title || 'Hirdetés'
+  if (!title || title === '—') return prefix
+
+  const lowerTitle = title.toLowerCase()
+  const lowerPrefix = prefix.toLowerCase()
+  if (lowerTitle === lowerPrefix || lowerTitle.startsWith(`${lowerPrefix} `)) {
+    return title
+  }
+
+  return `${prefix} ${title}`
+}

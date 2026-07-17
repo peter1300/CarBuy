@@ -11,6 +11,7 @@ import {
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { useAuth } from './AuthContext'
 import type { Listing } from '../data/listings'
+import { formatListingTitle } from '../data/listings'
 import type { ConversationRow, MessageRow, ProfileRow } from '../lib/database.types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
@@ -222,7 +223,13 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       return {
         id: row.id,
         listingId: row.listing_id,
-        listingTitle: listing?.title ?? 'Hirdetés',
+        listingTitle: listing
+          ? formatListingTitle({
+              make: listing.make,
+              model: listing.model,
+              title: listing.title,
+            })
+          : 'Hirdetés',
         listingPoster: listing?.video_poster ?? '',
         listingMake: listing?.make ?? '',
         listingModel: listing?.model ?? '',

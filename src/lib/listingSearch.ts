@@ -1,4 +1,5 @@
 import type { Listing } from '../data/listings'
+import { formatListingTitle } from '../data/listings'
 
 export type ListingSearchFilters = {
   q: string
@@ -85,6 +86,7 @@ export function filterListings(listings: Listing[], filters: ListingSearchFilter
   return listings.filter((listing) => {
     if (q) {
       const haystack = [
+        formatListingTitle(listing),
         listing.title,
         listing.make,
         listing.model,

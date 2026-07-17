@@ -22,6 +22,7 @@ import {
   type CallSignalPayload,
 } from '../lib/callMedia'
 import type { Listing } from '../data/listings'
+import { formatListingTitle } from '../data/listings'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 type StartCallArgs = {
@@ -453,7 +454,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setCall({
       id: crypto.randomUUID(),
       listingId: listing.id,
-      listingTitle: listing.title,
+      listingTitle: formatListingTitle(listing),
       mode,
       phase: 'failed',
       direction: 'outgoing',
@@ -518,7 +519,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       setCall({
         id: callId,
         listingId: listing.id,
-        listingTitle: listing.title,
+        listingTitle: formatListingTitle(listing),
         mode,
         phase: 'requesting',
         direction: 'outgoing',
@@ -544,7 +545,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         type: 'invite',
         callId,
         listingId: listing.id,
-        listingTitle: listing.title,
+        listingTitle: formatListingTitle(listing),
         mode,
         fromName: user.name,
         fromUserId: user.id,

@@ -1,4 +1,5 @@
 import type { Listing } from '../data/listings'
+import { formatListingTitle } from '../data/listings'
 
 /** Használtautó.hu-szerű kategória szegmens */
 export const LISTING_CATEGORY = 'szemelyauto'
@@ -23,7 +24,7 @@ export function slugifySegment(text: string): string {
 export function listingPath(listing: ListingUrlFields): string {
   const make = slugifySegment(listing.make) || 'egyeb'
   const model = slugifySegment(listing.model) || 'egyeb'
-  const titleSlug = slugifySegment(listing.title) || 'hirdetes'
+  const titleSlug = slugifySegment(formatListingTitle(listing)) || 'hirdetes'
   return `/${LISTING_CATEGORY}/${make}/${model}/${titleSlug}-${listing.id}`
 }
 

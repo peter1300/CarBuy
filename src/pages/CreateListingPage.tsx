@@ -9,7 +9,7 @@ import {
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
 import { listingPath } from '../lib/listingUrl'
-import type { Listing } from '../data/listings'
+import { formatListingTitle, type Listing } from '../data/listings'
 
 const STEPS = [
   { id: 1, label: 'Videó', hint: 'A meggyőző első benyomás' },
@@ -415,8 +415,11 @@ export function CreateListingPage() {
                       required
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="pl. BMW 320d xDrive M Sport"
+                      placeholder="pl. Hibátlan, teljes felszereltség"
                     />
+                    <p className="form-field__hint">
+                      A hirdetésen így jelenik meg: Márka + Modell + ez a szöveg.
+                    </p>
                   </div>
                   <div className="form-field">
                     <label htmlFor="make">Márka</label>
@@ -619,7 +622,13 @@ export function CreateListingPage() {
                     <span>{videoFile?.name || 'Nincs videó'}</span>
                   </div>
                   <div className="preview-card__body">
-                    <h3>{title || 'Cím nélkül'}</h3>
+                    <h3>
+                      {formatListingTitle({
+                        make: make || '—',
+                        model: model || '—',
+                        title: title || 'Cím nélkül',
+                      })}
+                    </h3>
                     <p className="preview-card__price">
                       {price
                         ? `${Number(price).toLocaleString('hu-HU')} Ft`
