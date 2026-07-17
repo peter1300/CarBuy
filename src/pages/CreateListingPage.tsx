@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
+import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
 import {
   ALLOWED_LISTING_VIDEO_TYPES,
   MAX_LISTING_VIDEO_BYTES,
@@ -412,13 +413,21 @@ export function CreateListingPage() {
                   </div>
                   <div className="form-field">
                     <label htmlFor="location">Helyszín</label>
-                    <input
+                    <select
                       id="location"
                       required
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Budapest"
-                    />
+                    >
+                      <option value="" disabled>
+                        Válassz megyét
+                      </option>
+                      {HUNGARY_LOCATIONS.filter((l) => l !== 'Teljes Magyarország').map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-field form-field--full">
                     <label htmlFor="description">Leírás</label>
