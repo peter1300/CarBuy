@@ -8,17 +8,20 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { useAuth } from './AuthContext'
 import {
-  CALL_CHANNEL,
+  callInboxChannel,
+  callSessionChannel,
   getMediaStream,
   stopMediaStream,
   type ActiveCall,
-  type CallInvitePayload,
   type CallMode,
   type CallParticipant,
+  type CallSignalPayload,
 } from '../lib/callMedia'
 import type { Listing } from '../data/listings'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 type StartCallArgs = {
   listing: Listing
@@ -38,6 +41,8 @@ type CallContextValue = {
 
 const CallContext = createContext<CallContextValue | null>(null)
 
+const RING_TIMEOUT_MS = 45_000
+
 function initialsFrom(name: string) {
   return name
     .split(' ')
@@ -56,15 +61,36 @@ function toParticipant(listing: Listing): CallParticipant {
   }
 }
 
+async function waitUntilSubscribed(channel: RealtimeChannel): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error('Híváscsatorna időtúllépés.'))
+    }, 10_000)
+
+    void channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        window.clearTimeout(timeout)
+        resolve()
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        window.clearTimeout(timeout)
+        reject(new Error('Hívásjelzés csatlakozás sikertelen.'))
+      }
+    })
+  })
+}
+
 export function CallProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [call, setCall] = useState<ActiveCall | null>(null)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
-  const channelRef = useRef<BroadcastChannel | null>(null)
-  const ringTimerRef = useRef<number | null>(null)
-  const pendingInviteRef = useRef<CallInvitePayload | null>(null)
+
   const callRef = useRef<ActiveCall | null>(null)
   const userRef = useRef(user)
+  const pendingInviteRef = useRef<CallSignalPayload | null>(null)
+  const ringTimerRef = useRef<number | null>(null)
+  const inboxRef = useRef<RealtimeChannel | null>(null)
+  const sessionRef = useRef<RealtimeChannel | null>(null)
 
   useEffect(() => {
     callRef.current = call
@@ -88,71 +114,210 @@ export function CallProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const broadcast = useCallback((payload: CallInvitePayload) => {
-    try {
-      channelRef.current?.postMessage(payload)
-    } catch {
-      // BroadcastChannel unavailable
+  const leaveSession = useCallback(async () => {
+    const ch = sessionRef.current
+    sessionRef.current = null
+    if (ch) {
+      try {
+        await supabase.removeChannel(ch)
+      } catch {
+        // ignore
+      }
     }
+  }, [])
+
+  const sendSignal = useCallback(async (channel: RealtimeChannel, payload: CallSignalPayload) => {
+    const result = await channel.send({
+      type: 'broadcast',
+      event: 'signal',
+      payload,
+    })
+    if (result !== 'ok') {
+      console.warn('[CarBuy] call signal send failed', result)
+    }
+  }, [])
+
+  const joinSession = useCallback(
+    async (callId: string) => {
+      await leaveSession()
+      const session = supabase.channel(callSessionChannel(callId), {
+        config: { broadcast: { self: false } },
+      })
+      session.on('broadcast', { event: 'signal' }, ({ payload }) => {
+        signalHandlerRef.current(payload as CallSignalPayload)
+      })
+      sessionRef.current = session
+      await waitUntilSubscribed(session)
+      return session
+    },
+    [leaveSession],
+  )
+
+  const signalHandlerRef = useRef<(data: CallSignalPayload) => void>(() => {})
+
+  signalHandlerRef.current = (data: CallSignalPayload) => {
+    if (!data?.type || !data.callId) return
+
+    const currentUser = userRef.current
+    const currentCall = callRef.current
+
+    if (data.type === 'invite') {
+      if (data.fromUserId && currentUser && data.fromUserId === currentUser.id) return
+      if (!currentUser || !data.ownerId || data.ownerId !== currentUser.id) return
+      if (currentCall) return
+
+      pendingInviteRef.current = data
+
+      void joinSession(data.callId).catch((err) => {
+        console.warn('[CarBuy] failed to join call session', err)
+      })
+
+      setCall({
+        id: data.callId,
+        listingId: data.listingId,
+        listingTitle: data.listingTitle,
+        mode: data.mode,
+        phase: 'ringing',
+        direction: 'incoming',
+        remote: {
+          name: data.fromName,
+          initials: initialsFrom(data.fromName),
+          type: 'private',
+        },
+        muted: false,
+        cameraOff: data.mode === 'audio',
+      })
+      return
+    }
+
+    if (data.type === 'accept') {
+      clearRingTimer()
+      setCall((prev) => {
+        if (!prev || prev.id !== data.callId || prev.direction !== 'outgoing') return prev
+        return { ...prev, phase: 'connected', startedAt: Date.now() }
+      })
+      return
+    }
+
+    if (data.type === 'reject' || data.type === 'end') {
+      clearRingTimer()
+      if (
+        currentCall?.id === data.callId ||
+        pendingInviteRef.current?.callId === data.callId
+      ) {
+        pendingInviteRef.current = null
+        cleanupMedia()
+        void leaveSession()
+        setCall((prev) => (prev ? { ...prev, phase: 'ended' } : null))
+        window.setTimeout(() => setCall(null), 800)
+      }
+    }
+  }
+
+  // Seller inbox while logged in
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user?.id) {
+      if (inboxRef.current) {
+        void supabase.removeChannel(inboxRef.current)
+        inboxRef.current = null
+      }
+      return
+    }
+
+    const channel = supabase.channel(callInboxChannel(user.id), {
+      config: { broadcast: { self: false } },
+    })
+
+    channel.on('broadcast', { event: 'signal' }, ({ payload }) => {
+      signalHandlerRef.current(payload as CallSignalPayload)
+    })
+
+    inboxRef.current = channel
+    void channel.subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.warn('[CarBuy] call inbox channel error')
+      }
+    })
+
+    return () => {
+      void supabase.removeChannel(channel)
+      if (inboxRef.current === channel) inboxRef.current = null
+    }
+  }, [user?.id])
+
+  const showFailed = useCallback((listing: Listing, mode: CallMode, error: string) => {
+    setCall({
+      id: crypto.randomUUID(),
+      listingId: listing.id,
+      listingTitle: listing.title,
+      mode,
+      phase: 'failed',
+      direction: 'outgoing',
+      remote: toParticipant(listing),
+      muted: false,
+      cameraOff: mode === 'audio',
+      error,
+    })
+    window.setTimeout(() => setCall(null), 3200)
   }, [])
 
   const endCall = useCallback(() => {
     clearRingTimer()
     const current = callRef.current
-    if (current) {
-      broadcast({
+    if (current && sessionRef.current) {
+      void sendSignal(sessionRef.current, {
         type: 'end',
         callId: current.id,
         listingId: current.listingId,
         listingTitle: current.listingTitle,
         mode: current.mode,
         fromName: userRef.current?.name ?? 'Felhasználó',
+        fromUserId: userRef.current?.id,
+        ownerId: pendingInviteRef.current?.ownerId,
       })
     }
+
     pendingInviteRef.current = null
     cleanupMedia()
+    void leaveSession()
     setCall((prev) => (prev ? { ...prev, phase: 'ended' } : null))
     window.setTimeout(() => setCall(null), 900)
-  }, [broadcast, cleanupMedia, clearRingTimer])
+  }, [cleanupMedia, clearRingTimer, leaveSession, sendSignal])
 
   const startCall = useCallback(
     async ({ listing, mode }: StartCallArgs) => {
       if (listing.seller.status !== 'online') {
-        setCall({
-          id: crypto.randomUUID(),
-          listingId: listing.id,
-          listingTitle: listing.title,
-          mode,
-          phase: 'failed',
-          direction: 'outgoing',
-          remote: toParticipant(listing),
-          muted: false,
-          cameraOff: mode === 'audio',
-          error: 'A hirdető jelenleg nem Online — hívás nem indítható.',
-        })
-        window.setTimeout(() => setCall(null), 2800)
+        showFailed(listing, mode, 'A hirdető jelenleg nem Online — hívás nem indítható.')
         return
       }
 
-      if (user && listing.ownerId && listing.ownerId === user.id) {
-        setCall({
-          id: crypto.randomUUID(),
-          listingId: listing.id,
-          listingTitle: listing.title,
+      if (!user) {
+        showFailed(listing, mode, 'A híváshoz be kell jelentkezned.')
+        return
+      }
+
+      if (listing.ownerId && listing.ownerId === user.id) {
+        showFailed(listing, mode, 'Saját hirdetésedet nem hívhatod fel.')
+        return
+      }
+
+      if (!listing.ownerId) {
+        showFailed(
+          listing,
           mode,
-          phase: 'failed',
-          direction: 'outgoing',
-          remote: toParticipant(listing),
-          muted: false,
-          cameraOff: mode === 'audio',
-          error: 'Saját hirdetésedet nem hívhatod fel.',
-        })
-        window.setTimeout(() => setCall(null), 2800)
+          'Ez demó hirdetés — nincs valódi hirdető, aki fogadhatná a hívást.',
+        )
+        return
+      }
+
+      if (!isSupabaseConfigured) {
+        showFailed(listing, mode, 'Supabase nincs beállítva — hívásjelzés nem elérhető.')
         return
       }
 
       clearRingTimer()
       cleanupMedia()
+      await leaveSession()
 
       const callId = crypto.randomUUID()
       setCall({
@@ -171,47 +336,69 @@ export function CallProvider({ children }: { children: ReactNode }) {
         const stream = await getMediaStream(mode)
         setLocalStream(stream)
       } catch {
-        setCall({
-          id: callId,
-          listingId: listing.id,
-          listingTitle: listing.title,
+        showFailed(
+          listing,
           mode,
-          phase: 'failed',
-          direction: 'outgoing',
-          remote: toParticipant(listing),
-          muted: false,
-          cameraOff: mode === 'audio',
-          error: 'Kamera vagy mikrofon hozzáférés megtagadva. Engedélyezd a böngészőben.',
-        })
-        window.setTimeout(() => setCall(null), 3200)
+          'Kamera vagy mikrofon hozzáférés megtagadva. Engedélyezd a böngészőben.',
+        )
         return
       }
 
-      setCall((prev) => (prev ? { ...prev, phase: 'ringing' } : prev))
-
-      broadcast({
+      const invite: CallSignalPayload = {
         type: 'invite',
         callId,
         listingId: listing.id,
         listingTitle: listing.title,
         mode,
-        fromName: user?.name ?? 'Érdeklődő',
+        fromName: user.name,
+        fromUserId: user.id,
         ownerId: listing.ownerId,
-      })
+      }
 
-      // Demo / ha nincs válasz: automatikus kapcsolódás
-      ringTimerRef.current = window.setTimeout(() => {
-        setCall((prev) => {
-          if (!prev || prev.id !== callId || prev.phase !== 'ringing') return prev
-          return {
-            ...prev,
-            phase: 'connected',
-            startedAt: Date.now(),
-          }
+      try {
+        await joinSession(callId)
+
+        const inbox = supabase.channel(callInboxChannel(listing.ownerId), {
+          config: { broadcast: { self: false } },
         })
-      }, 2400)
+        await waitUntilSubscribed(inbox)
+        await sendSignal(inbox, invite)
+        await supabase.removeChannel(inbox)
+
+        setCall((prev) => (prev ? { ...prev, phase: 'ringing' } : prev))
+
+        ringTimerRef.current = window.setTimeout(() => {
+          setCall((prev) => {
+            if (!prev || prev.id !== callId || prev.phase !== 'ringing') return prev
+            cleanupMedia()
+            void leaveSession()
+            return {
+              ...prev,
+              phase: 'failed',
+              error: 'Nincs válasz. A hirdetőnek bejelentkezve a CarBuy oldalon kell lennie.',
+            }
+          })
+          window.setTimeout(() => setCall(null), 3200)
+        }, RING_TIMEOUT_MS)
+      } catch (err) {
+        cleanupMedia()
+        await leaveSession()
+        showFailed(
+          listing,
+          mode,
+          err instanceof Error ? err.message : 'Hívásjelzés sikertelen.',
+        )
+      }
     },
-    [broadcast, cleanupMedia, clearRingTimer, user],
+    [
+      user,
+      clearRingTimer,
+      cleanupMedia,
+      leaveSession,
+      sendSignal,
+      joinSession,
+      showFailed,
+    ],
   )
 
   const acceptIncoming = useCallback(async () => {
@@ -219,15 +406,18 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const current = callRef.current
     if (!invite || !current || current.direction !== 'incoming') return
 
-    broadcast({
-      type: 'accept',
-      callId: invite.callId,
-      listingId: invite.listingId,
-      listingTitle: invite.listingTitle,
-      mode: invite.mode,
-      fromName: userRef.current?.name ?? 'Hirdető',
-      ownerId: invite.ownerId,
-    })
+    if (sessionRef.current) {
+      await sendSignal(sessionRef.current, {
+        type: 'accept',
+        callId: invite.callId,
+        listingId: invite.listingId,
+        listingTitle: invite.listingTitle,
+        mode: invite.mode,
+        fromName: userRef.current?.name ?? 'Hirdető',
+        fromUserId: userRef.current?.id,
+        ownerId: invite.ownerId,
+      })
+    }
 
     setCall((prev) => (prev ? { ...prev, phase: 'connecting' } : prev))
 
@@ -256,25 +446,27 @@ export function CallProvider({ children }: { children: ReactNode }) {
       )
       window.setTimeout(() => setCall(null), 2800)
     }
-  }, [broadcast])
+  }, [sendSignal])
 
   const rejectIncoming = useCallback(() => {
     const invite = pendingInviteRef.current
-    if (invite) {
-      broadcast({
+    if (invite && sessionRef.current) {
+      void sendSignal(sessionRef.current, {
         type: 'reject',
         callId: invite.callId,
         listingId: invite.listingId,
         listingTitle: invite.listingTitle,
         mode: invite.mode,
         fromName: userRef.current?.name ?? 'Hirdető',
+        fromUserId: userRef.current?.id,
         ownerId: invite.ownerId,
       })
     }
     pendingInviteRef.current = null
     cleanupMedia()
+    void leaveSession()
     setCall(null)
-  }, [broadcast, cleanupMedia])
+  }, [cleanupMedia, leaveSession, sendSignal])
 
   const toggleMute = useCallback(() => {
     setCall((prev) => {
@@ -305,76 +497,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    let channel: BroadcastChannel | null = null
-    try {
-      channel = new BroadcastChannel(CALL_CHANNEL)
-      channelRef.current = channel
-    } catch {
-      return
-    }
-
-    channel.onmessage = (event: MessageEvent<CallInvitePayload>) => {
-      const data = event.data
-      if (!data?.type) return
-      const currentUser = userRef.current
-      const currentCall = callRef.current
-
-      if (data.type === 'invite') {
-        if (!currentUser || !data.ownerId || data.ownerId !== currentUser.id) return
-        if (currentCall) return
-
-        pendingInviteRef.current = data
-        setCall({
-          id: data.callId,
-          listingId: data.listingId,
-          listingTitle: data.listingTitle,
-          mode: data.mode,
-          phase: 'ringing',
-          direction: 'incoming',
-          remote: {
-            name: data.fromName,
-            initials: initialsFrom(data.fromName),
-            type: 'private',
-          },
-          muted: false,
-          cameraOff: data.mode === 'audio',
-        })
-        return
-      }
-
-      if (data.type === 'accept') {
-        clearRingTimer()
-        setCall((prev) => {
-          if (!prev || prev.id !== data.callId || prev.direction !== 'outgoing') return prev
-          return { ...prev, phase: 'connected', startedAt: Date.now() }
-        })
-        return
-      }
-
-      if (data.type === 'reject' || data.type === 'end') {
-        clearRingTimer()
-        if (
-          currentCall?.id === data.callId ||
-          pendingInviteRef.current?.callId === data.callId
-        ) {
-          pendingInviteRef.current = null
-          cleanupMedia()
-          setCall((prev) => (prev ? { ...prev, phase: 'ended' } : null))
-          window.setTimeout(() => setCall(null), 800)
-        }
-      }
-    }
-
-    return () => {
-      channel?.close()
-      channelRef.current = null
-    }
-  }, [cleanupMedia, clearRingTimer])
-
-  useEffect(() => {
     return () => {
       clearRingTimer()
       cleanupMedia()
+      if (sessionRef.current) void supabase.removeChannel(sessionRef.current)
+      if (inboxRef.current) void supabase.removeChannel(inboxRef.current)
     }
   }, [cleanupMedia, clearRingTimer])
 

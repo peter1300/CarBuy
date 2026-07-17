@@ -197,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: data.email.trim(),
         password: data.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name: data.name.trim(),
             account_type: data.accountType,

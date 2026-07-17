@@ -30,17 +30,26 @@ export type ActiveCall = {
   cameraOff: boolean
 }
 
-export type CallInvitePayload = {
+export type CallSignalPayload = {
   type: 'invite' | 'accept' | 'reject' | 'end'
   callId: string
   listingId: string
   listingTitle: string
   mode: CallMode
   fromName: string
+  fromUserId?: string
   ownerId?: string
 }
 
-export const CALL_CHANNEL = 'carbuy-calls-v1'
+/** Inbox channel for a seller — they must be subscribed while logged in. */
+export function callInboxChannel(userId: string) {
+  return `call-inbox:${userId}`
+}
+
+/** Shared session channel for both parties of one call. */
+export function callSessionChannel(callId: string) {
+  return `call-session:${callId}`
+}
 
 export async function getMediaStream(mode: CallMode): Promise<MediaStream> {
   return navigator.mediaDevices.getUserMedia({
