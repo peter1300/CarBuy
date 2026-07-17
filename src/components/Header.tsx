@@ -78,7 +78,6 @@ export function Header() {
           <a href="/#kereses">Keresés</a>
           <a href="/#hirdetesek">Hirdetések</a>
           <Link to="/hirdetes-feladas">Hirdetésfeladás</Link>
-          {user && <Link to="/uzenetek">Üzenetek</Link>}
         </nav>
 
         <div className="header-actions">
@@ -162,15 +161,6 @@ export function Header() {
                       Beállítások
                     </Link>
                     <Link
-                      to="/uzenetek"
-                      role="menuitem"
-                      className="account-dropdown__item"
-                      onClick={closeAccount}
-                    >
-                      Üzenetek
-                      {unreadCount > 0 ? ` (${unreadCount})` : ''}
-                    </Link>
-                    <Link
                       to="/profil"
                       role="menuitem"
                       className="account-dropdown__item"
@@ -249,10 +239,6 @@ export function Header() {
         </Link>
         {user ? (
           <>
-            <Link to="/uzenetek" onClick={closeMenu}>
-              Üzenetek
-              {unreadCount > 0 ? ` (${unreadCount})` : ''}
-            </Link>
             <p className="mobile-nav__label">{displayName}</p>
             <Link to="/profil/szerkesztes" onClick={closeMenu}>
               Profil szerkesztése
