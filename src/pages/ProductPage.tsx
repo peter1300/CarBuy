@@ -121,15 +121,23 @@ export function ProductPage() {
         <div className="product__layout">
           <div className="product__main">
             <div className="product-video">
-              <img src={listing.videoPoster} alt={`${listing.title} videó`} />
-              <div className="product-video__overlay">
-                <button type="button" className="product-video__play" aria-label="Videó lejátszása">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 6.5v11L18 12 9 6.5z" fill="#111113" />
-                  </svg>
-                </button>
-                <span className="product-video__label">Videós bemutató</span>
-              </div>
+              {listing.videoUrl ? (
+                <video
+                  className="product-video__player"
+                  src={listing.videoUrl}
+                  poster={listing.videoPoster}
+                  controls
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <>
+                  <img src={listing.videoPoster} alt={`${listing.title} videó`} />
+                  <div className="product-video__overlay">
+                    <span className="product-video__label">Videós bemutató</span>
+                  </div>
+                </>
+              )}
               <span className="product-video__duration">{listing.videoDuration}</span>
             </div>
 

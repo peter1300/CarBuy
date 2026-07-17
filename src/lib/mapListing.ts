@@ -35,6 +35,7 @@ export function mapListingRow(row: ListingRow): Listing {
     description: row.description,
     videoPoster: row.video_poster,
     videoDuration: row.video_duration,
+    videoUrl: row.video_url ?? undefined,
     seller: {
       name: row.seller_name,
       type: row.seller_type,

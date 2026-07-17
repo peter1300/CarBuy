@@ -1,7 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
+import {
+  ALLOWED_LISTING_VIDEO_TYPES,
+  MAX_LISTING_VIDEO_BYTES,
+} from '../lib/listingVideo'
 import { listingPath } from '../lib/listingUrl'
 import type { Listing } from '../data/listings'
 
@@ -20,7 +24,10 @@ export function CreateListingPage() {
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
 
-  const [videoName, setVideoName] = useState('')
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
+  const [videoError, setVideoError] = useState<string | null>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [make, setMake] = useState('')
   const [model, setModel] = useState('')
@@ -35,6 +42,16 @@ export function CreateListingPage() {
   const [goOnline, setGoOnline] = useState(true)
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100
+
+  useEffect(() => {
+    if (!videoFile) {
+      setVideoPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(videoFile)
+    setVideoPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [videoFile])
 
   if (authLoading) {
     return (
@@ -59,6 +76,11 @@ export function CreateListingPage() {
   const handlePublish = async (e: FormEvent) => {
     e.preventDefault()
     if (publishing) return
+    if (!videoFile) {
+      setPublishError('Tölts fel egy bemutatóvideót.')
+      setStep(1)
+      return
+    }
     setPublishError(null)
     setPublishing(true)
     try {
@@ -74,7 +96,7 @@ export function CreateListingPage() {
         power: Number(power) || 0,
         location: location || '—',
         description,
-        videoName,
+        videoFile,
         status: goOnline ? 'online' : 'offline',
       })
       setPublishedListing(listing)
@@ -85,8 +107,23 @@ export function CreateListingPage() {
     }
   }
 
-  const simulateVideo = () => {
-    setVideoName('bemutato-auto.mp4')
+  const onPickVideo = (file: File | null) => {
+    setVideoError(null)
+    if (!file) {
+      setVideoFile(null)
+      return
+    }
+    if (!ALLOWED_LISTING_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])) {
+      setVideoError('Csak MP4, WebM vagy MOV fájl tölthető fel.')
+      setVideoFile(null)
+      return
+    }
+    if (file.size > MAX_LISTING_VIDEO_BYTES) {
+      setVideoError('A videó maximum 100 MB lehet.')
+      setVideoFile(null)
+      return
+    }
+    setVideoFile(file)
   }
 
   if (publishedListing) {
@@ -180,26 +217,31 @@ export function CreateListingPage() {
                   60–180 másodperc elég. Beltér, karosszéria, indítás — ennyi kell a bizalomhoz.
                 </p>
 
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  className="sr-only"
+                  onChange={(e) => onPickVideo(e.target.files?.[0] ?? null)}
+                />
                 <button
                   type="button"
-                  className={`video-dropzone${videoName ? ' is-filled' : ''}`}
-                  onClick={simulateVideo}
+                  className={`video-dropzone${videoFile ? ' is-filled' : ''}`}
+                  onClick={() => videoInputRef.current?.click()}
                 >
-                  {videoName ? (
+                  {videoFile && videoPreviewUrl ? (
                     <>
-                      <span className="video-dropzone__check" aria-hidden="true">
-                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                          <path
-                            d="M7 14.5l4.5 4.5L21 9"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                      <video
+                        className="video-dropzone__preview"
+                        src={videoPreviewUrl}
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <strong>{videoFile.name}</strong>
+                      <span>
+                        {(videoFile.size / (1024 * 1024)).toFixed(1)} MB · kattints másik videóhoz
                       </span>
-                      <strong>{videoName}</strong>
-                      <span>Kattints másik videó választásához</span>
                     </>
                   ) : (
                     <>
@@ -218,10 +260,11 @@ export function CreateListingPage() {
                         </svg>
                       </span>
                       <strong>Videó feltöltése</strong>
-                      <span>MP4 vagy MOV · max. 500 MB · kattints a bemutatóhoz</span>
+                      <span>MP4, WebM vagy MOV · max. 100 MB</span>
                     </>
                   )}
                 </button>
+                {videoError && <p className="form-error">{videoError}</p>}
 
                 <div className="tip-row">
                   <article className="mini-tip">
@@ -428,7 +471,7 @@ export function CreateListingPage() {
                         <path d="M7 4.5v11L16 10 7 4.5z" fill="currentColor" />
                       </svg>
                     </div>
-                    <span>{videoName || 'Nincs videó'}</span>
+                    <span>{videoFile?.name || 'Nincs videó'}</span>
                   </div>
                   <div className="preview-card__body">
                     <h3>{title || 'Cím nélkül'}</h3>
@@ -464,7 +507,7 @@ export function CreateListingPage() {
                 <button
                   type="submit"
                   className="btn btn--accent btn--lg"
-                  disabled={(step === 1 && !videoName) || publishing}
+                  disabled={(step === 1 && !videoFile) || publishing}
                 >
                   {publishing
                     ? 'Közzététel…'

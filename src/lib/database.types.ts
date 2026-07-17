@@ -75,6 +75,7 @@ export type Database = {
           seller_response_time: string
           unique_views: number
           created_at: string
+          video_url: string | null
         }
         Insert: {
           id: string
@@ -102,6 +103,7 @@ export type Database = {
           seller_response_time?: string
           unique_views?: number
           created_at?: string
+          video_url?: string | null
         }
         Update: {
           id?: string
@@ -129,6 +131,7 @@ export type Database = {
           seller_response_time?: string
           unique_views?: number
           created_at?: string
+          video_url?: string | null
         }
         Relationships: []
       }

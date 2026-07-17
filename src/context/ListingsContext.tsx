@@ -10,6 +10,11 @@ import {
 import type { Listing, SellerStatus } from '../data/listings'
 import { ensureProfile, type User } from './AuthContext'
 import { createListingId } from '../lib/listingUrl'
+import {
+  ALLOWED_LISTING_VIDEO_TYPES,
+  captureVideoPoster,
+  MAX_LISTING_VIDEO_BYTES,
+} from '../lib/listingVideo'
 import { mapListingRow } from '../lib/mapListing'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
@@ -25,7 +30,7 @@ export type UserListingInput = {
   power: number
   location: string
   description: string
-  videoName: string
+  videoFile: File
   status: SellerStatus
 }
 
@@ -126,7 +131,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       const description =
         input.description ||
         'Videós bemutatóval feltöltött hirdetés. Élő hívásban bármit megmutatunk.'
-      const features = [input.videoName ? 'Videós bemutató' : 'Új hirdetés'].filter(Boolean)
+      const features = ['Videós bemutató']
       const specs = [
         { label: 'Évjárat', value: String(input.year) },
         { label: 'Kilométeróra', value: `${input.mileage.toLocaleString('hu-HU')} km` },
@@ -135,6 +140,50 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         { label: 'Teljesítmény', value: input.power ? `${input.power} LE` : '—' },
         { label: 'Helyszín', value: input.location },
       ]
+
+      const file = input.videoFile
+      if (!ALLOWED_LISTING_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])) {
+        throw new Error('Csak MP4, WebM vagy MOV videó tölthető fel.')
+      }
+      if (file.size > MAX_LISTING_VIDEO_BYTES) {
+        throw new Error('A videó maximum 100 MB lehet.')
+      }
+
+      const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)
+
+      const ext =
+        file.type === 'video/webm' ? 'webm' : file.type === 'video/quicktime' ? 'mov' : 'mp4'
+      const videoPath = `${ownerId}/${id}/video.${ext}`
+      const posterPath = `${ownerId}/${id}/poster.jpg`
+
+      const { error: videoUploadError } = await supabase.storage
+        .from('listing-videos')
+        .upload(videoPath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        })
+      if (videoUploadError) {
+        throw new Error(videoUploadError.message || 'Videó feltöltése sikertelen.')
+      }
+
+      const { error: posterUploadError } = await supabase.storage
+        .from('listing-videos')
+        .upload(posterPath, posterBlob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: 'image/jpeg',
+        })
+      if (posterUploadError) {
+        throw new Error(posterUploadError.message || 'Előnézet feltöltése sikertelen.')
+      }
+
+      const {
+        data: { publicUrl: videoUrl },
+      } = supabase.storage.from('listing-videos').getPublicUrl(videoPath)
+      const {
+        data: { publicUrl: posterUrl },
+      } = supabase.storage.from('listing-videos').getPublicUrl(posterPath)
 
       const { data, error: insertError } = await supabase
         .from('listings')
@@ -153,8 +202,9 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           power: input.power,
           location: input.location,
           description,
-          video_poster: DEFAULT_POSTER,
-          video_duration: '1:45',
+          video_poster: posterUrl || DEFAULT_POSTER,
+          video_url: videoUrl,
+          video_duration: durationLabel,
           features,
           specs,
           seller_name: sellerName,
@@ -169,9 +219,9 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
       if (insertError || !data) {
         const msg = insertError?.message ?? 'Hirdetés mentése sikertelen.'
-        if (/row-level security|RLS|permission denied|violates foreign key/i.test(msg)) {
+        if (/row-level security|RLS|permission denied|violates foreign key|video_url/i.test(msg)) {
           throw new Error(
-            'A hirdetés mentése az adatbázisban meghiúsult. Futtasd a supabase/migrations/002_auth_grants_fix.sql fájlt a Supabase SQL Editorban, majd próbáld újra.',
+            'A hirdetés mentése az adatbázisban meghiúsult. Futtasd a supabase/migrations/005_listing_videos.sql fájlt a Supabase SQL Editorban, majd próbáld újra.',
           )
         }
         throw new Error(msg)

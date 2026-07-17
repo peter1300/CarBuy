@@ -15,6 +15,8 @@ export type Listing = {
   description: string
   videoPoster: string
   videoDuration: string
+  /** Uploaded listing video (public URL); demos may omit */
+  videoUrl?: string
   seller: {
     name: string
     type: 'private' | 'dealer'
