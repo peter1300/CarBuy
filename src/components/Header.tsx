@@ -74,6 +74,7 @@ export function Header() {
           <a href="/#kereses">Keresés</a>
           <a href="/#hirdetesek">Hirdetések</a>
           <Link to="/hirdetes-feladas">Hirdetésfeladás</Link>
+          {user && <Link to="/uzenetek">Üzenetek</Link>}
         </nav>
 
         <div className="header-actions">
@@ -124,6 +125,14 @@ export function Header() {
                       onClick={closeAccount}
                     >
                       Beállítások
+                    </Link>
+                    <Link
+                      to="/uzenetek"
+                      role="menuitem"
+                      className="account-dropdown__item"
+                      onClick={closeAccount}
+                    >
+                      Üzenetek
                     </Link>
                     <Link
                       to="/profil"
@@ -194,6 +203,9 @@ export function Header() {
         </Link>
         {user ? (
           <>
+            <Link to="/uzenetek" onClick={closeMenu}>
+              Üzenetek
+            </Link>
             <p className="mobile-nav__label">{displayName}</p>
             <Link to="/profil/szerkesztes" onClick={closeMenu}>
               Profil szerkesztése

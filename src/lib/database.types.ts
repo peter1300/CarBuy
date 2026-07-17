@@ -150,6 +150,60 @@ export type Database = {
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          id: string
+          listing_id: string
+          buyer_id: string
+          seller_id: string
+          last_message_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          listing_id: string
+          buyer_id: string
+          seller_id: string
+          last_message_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          listing_id?: string
+          buyer_id?: string
+          seller_id?: string
+          last_message_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          body: string | null
+          video_path: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          body?: string | null
+          video_path?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          sender_id?: string
+          body?: string | null
+          video_path?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -165,3 +219,5 @@ export type Database = {
 
 export type ListingRow = Database['public']['Tables']['listings']['Row']
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
+export type ConversationRow = Database['public']['Tables']['conversations']['Row']
+export type MessageRow = Database['public']['Tables']['messages']['Row']

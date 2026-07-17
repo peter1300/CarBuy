@@ -2946,3 +2946,242 @@ a.btn {
   background: #d93838;
 }
 
+/* —— Messages —— */
+.messages-page {
+  padding-bottom: 3rem;
+}
+
+.messages-page__narrow {
+  max-width: 720px;
+}
+
+.messages-page__chat {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 8rem);
+}
+
+.messages-header {
+  margin-bottom: 1.75rem;
+}
+
+.messages-header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  letter-spacing: -0.03em;
+  margin-bottom: 0.35rem;
+}
+
+.messages-header p {
+  color: var(--text-secondary);
+}
+
+.messages-thread-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.messages-thread {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.85rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.2s var(--ease-out);
+}
+
+.messages-thread:hover {
+  background: rgba(15, 122, 90, 0.04);
+}
+
+.messages-thread__thumb {
+  width: 64px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--border);
+}
+
+.messages-thread__thumb--empty {
+  display: block;
+}
+
+.messages-thread__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.messages-thread__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.messages-thread__top time {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.messages-thread__listing {
+  font-size: 0.85rem;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-thread__preview {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-chat-header {
+  margin-bottom: 1rem;
+}
+
+.messages-chat-header__meta h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  margin: 0.35rem 0 0.15rem;
+}
+
+.messages-chat-header__meta p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.messages-chat-header__meta a {
+  color: var(--accent);
+}
+
+.messages-chat-stream {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 0 1.25rem;
+  overflow-y: auto;
+  max-height: min(58vh, 560px);
+}
+
+.messages-bubble {
+  align-self: flex-start;
+  max-width: min(85%, 420px);
+  padding: 0.75rem 0.9rem;
+  background: rgba(15, 20, 25, 0.04);
+  border-radius: 16px 16px 16px 4px;
+}
+
+.messages-bubble--mine {
+  align-self: flex-end;
+  background: rgba(15, 122, 90, 0.12);
+  border-radius: 16px 16px 4px 16px;
+}
+
+.messages-bubble__text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.messages-bubble__video {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  margin-top: 0.45rem;
+  border-radius: 10px;
+  background: #111;
+}
+
+.messages-bubble__time {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.messages-composer {
+  position: sticky;
+  bottom: 0;
+  padding: 0.75rem 0 0.25rem;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+
+.messages-composer__attach {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.messages-composer__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.messages-composer__file {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  background: rgba(15, 20, 25, 0.05);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.messages-composer__file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.messages-composer__input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 0.9rem;
+  font: inherit;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.messages-composer__input:focus {
+  outline: 2px solid rgba(15, 122, 90, 0.35);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .messages-composer__row .btn {
+    padding-inline: 0.9rem;
+  }
+}
+

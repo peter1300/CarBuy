@@ -1,10 +1,11 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { formatMileage, formatPrice } from '../data/listings'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { useCall } from '../context/CallContext'
+import { useMessages } from '../context/MessagesContext'
 import { listingIdFromSlug, listingPath } from '../lib/listingUrl'
 import type { CallMode } from '../lib/callMedia'
 
@@ -14,6 +15,9 @@ export function ProductPage() {
   const { user } = useAuth()
   const { getListing, recordUniqueView, loading: listingsLoading } = useListings()
   const { startCall, call } = useCall()
+  const { openOrCreateConversation } = useMessages()
+  const [messageBusy, setMessageBusy] = useState(false)
+  const [messageError, setMessageError] = useState<string | null>(null)
 
   const id = slug ? listingIdFromSlug(slug) : undefined
   const listing = id ? getListing(id) : undefined
@@ -75,6 +79,23 @@ export function ProductPage() {
       return
     }
     void startCall({ listing, mode })
+  }
+
+  const handleMessage = async () => {
+    if (!user) {
+      navigate('/belepes', { state: { from: canonical } })
+      return
+    }
+    if (messageBusy) return
+    setMessageBusy(true)
+    setMessageError(null)
+    const result = await openOrCreateConversation(listing)
+    setMessageBusy(false)
+    if (result.error) {
+      setMessageError(result.error)
+      return
+    }
+    if (result.id) navigate(`/uzenetek/${result.id}`)
   }
 
   return (
@@ -211,9 +232,15 @@ export function ProductPage() {
                   </svg>
                   Hanghívás
                 </button>
-                <button type="button" className="btn btn--ghost btn--block">
-                  Üzenet küldése
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--block"
+                  disabled={messageBusy || Boolean(user && listing.ownerId === user.id) || !listing.ownerId}
+                  onClick={() => void handleMessage()}
+                >
+                  {messageBusy ? 'Megnyitás…' : 'Üzenet küldése'}
                 </button>
+                {messageError && <p className="form-error">{messageError}</p>}
               </div>
 
               <p className={`seller-card__hint${canCall ? '' : ' seller-card__hint--warn'}`}>{hint}</p>
