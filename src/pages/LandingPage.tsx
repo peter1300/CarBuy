@@ -30,8 +30,8 @@ export function LandingPage() {
             <p className="hero__brand">CarBuy</p>
             <h1 className="hero__headline">Találd meg gyorsabban. Vedd meg biztosabban.</h1>
             <p className="hero__sub">
-              Videós hirdetések és élő bemutató egy helyen — így percek alatt eldöntheted, hogy az autó
-              valóban a tiéd.
+              Videós hirdetések és élő bemutató, így percek alatt eldöntheted, hogy az autó valóban a
+              tiéd lesz-e
             </p>
           </div>
 
