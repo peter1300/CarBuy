@@ -173,13 +173,13 @@ export function MessagesChatPage() {
       setVideoFile(null)
       return
     }
-    if (!ALLOWED_MESSAGE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_MESSAGE_VIDEO_TYPES)[number])) {
-      setSendError('Csak MP4, WebM vagy MOV videó csatolható.')
+    if (!ALLOWED_MESSAGE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_MESSAGE_VIDEO_TYPES)[number]) && !file.type.startsWith('video/')) {
+      setSendError('Csak videófájl csatolható.')
       setVideoFile(null)
       return
     }
     if (file.size > MAX_MESSAGE_VIDEO_BYTES) {
-      setSendError('A videó maximum 40 MB lehet.')
+      setSendError('A videó maximum 150 MB lehet (feltöltés előtt tömörítjük).')
       setVideoFile(null)
       return
     }

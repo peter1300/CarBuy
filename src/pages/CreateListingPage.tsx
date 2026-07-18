@@ -29,6 +29,7 @@ export function CreateListingPage() {
   const [publishedListing, setPublishedListing] = useState<Listing | null>(null)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
+  const [publishStatus, setPublishStatus] = useState('Közzététel…')
 
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
@@ -116,23 +117,28 @@ export function CreateListingPage() {
     }
     setPublishError(null)
     setPublishing(true)
+    setPublishStatus('Videók tömörítése…')
     try {
-      const listing = await addListing(user, {
-        title: title || `${make} ${model}`.trim() || 'Új hirdetés',
-        make: make || '—',
-        model: model || '—',
-        year: Number(year) || new Date().getFullYear(),
-        price: Number(price) || 0,
-        mileage: Number(mileage) || 0,
-        fuel: fuel || '—',
-        transmission: transmission || '—',
-        power: Number(power) || 0,
-        location: location || '—',
-        description,
-        videoFile,
-        flawsVideoFile,
-        status: goOnline ? 'online' : 'offline',
-      })
+      const listing = await addListing(
+        user,
+        {
+          title: title || `${make} ${model}`.trim() || 'Új hirdetés',
+          make: make || '—',
+          model: model || '—',
+          year: Number(year) || new Date().getFullYear(),
+          price: Number(price) || 0,
+          mileage: Number(mileage) || 0,
+          fuel: fuel || '—',
+          transmission: transmission || '—',
+          power: Number(power) || 0,
+          location: location || '—',
+          description,
+          videoFile,
+          flawsVideoFile,
+          status: goOnline ? 'online' : 'offline',
+        },
+        { onStatus: setPublishStatus },
+      )
       setPublishedListing(listing)
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Közzététel sikertelen.')
@@ -707,7 +713,7 @@ export function CreateListingPage() {
                   }
                 >
                   {publishing
-                    ? 'Közzététel…'
+                    ? publishStatus
                     : step === STEPS.length
                       ? 'Hirdetés közzététele'
                       : 'Tovább'}

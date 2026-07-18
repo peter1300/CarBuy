@@ -13,9 +13,9 @@ import { createListingId } from '../lib/listingUrl'
 import {
   captureVideoPoster,
   isAllowedListingVideo,
-  listingVideoExtension,
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
+import { compressVideoForUpload } from '../lib/compressVideo'
 import { mapListingRow } from '../lib/mapListing'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
@@ -41,7 +41,11 @@ type ListingsContextValue = {
   loading: boolean
   error: string | null
   refreshListings: () => Promise<void>
-  addListing: (user: User, input: UserListingInput) => Promise<Listing>
+  addListing: (
+    user: User,
+    input: UserListingInput,
+    options?: { onStatus?: (status: string) => void },
+  ) => Promise<Listing>
   getListing: (id: string) => Listing | undefined
   getListingsForUser: (userId: string) => Listing[]
   removeListing: (id: string) => Promise<void>
@@ -108,7 +112,11 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   }, [refreshListings])
 
   const addListing = useCallback(
-    async (_user: User, input: UserListingInput) => {
+    async (
+      _user: User,
+      input: UserListingInput,
+      options?: { onStatus?: (status: string) => void },
+    ) => {
       if (!isSupabaseConfigured) {
         throw new Error('Supabase nincs beállítva.')
       }
@@ -143,39 +151,62 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         { label: 'Helyszín', value: input.location },
       ]
 
-      const file = input.videoFile
-      if (!isAllowedListingVideo(file)) {
+      const rawFile = input.videoFile
+      if (!isAllowedListingVideo(rawFile)) {
         throw new Error('Csak videófájl tölthető fel (MP4, MOV, WebM).')
       }
-      if (file.size > MAX_LISTING_VIDEO_BYTES) {
+      if (rawFile.size > MAX_LISTING_VIDEO_BYTES) {
         throw new Error('A videó maximum 150 MB lehet.')
       }
 
-      const flawsFile = input.flawsVideoFile
-      if (!isAllowedListingVideo(flawsFile)) {
+      const rawFlaws = input.flawsVideoFile
+      if (!isAllowedListingVideo(rawFlaws)) {
         throw new Error('A hibák videója csak videófájl lehet (MP4, MOV, WebM).')
       }
-      if (flawsFile.size > MAX_LISTING_VIDEO_BYTES) {
+      if (rawFlaws.size > MAX_LISTING_VIDEO_BYTES) {
         throw new Error('A hibák videója maximum 150 MB lehet.')
       }
 
+      options?.onStatus?.('Bemutatóvideó tömörítése…')
+      const file = await compressVideoForUpload(rawFile, {
+        onProgress: ({ phase, ratio }) => {
+          if (phase === 'loading') {
+            options?.onStatus?.('Tömörítő betöltése…')
+            return
+          }
+          options?.onStatus?.(
+            `Bemutatóvideó tömörítése… ${Math.round(ratio * 100)}%`,
+          )
+        },
+      })
+
+      options?.onStatus?.('Hibák videó tömörítése…')
+      const flawsFile = await compressVideoForUpload(rawFlaws, {
+        onProgress: ({ phase, ratio }) => {
+          if (phase === 'loading') {
+            options?.onStatus?.('Tömörítő betöltése…')
+            return
+          }
+          options?.onStatus?.(
+            `Hibák videó tömörítése… ${Math.round(ratio * 100)}%`,
+          )
+        },
+      })
+
+      options?.onStatus?.('Előnézet készítése…')
       const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)
 
-      const ext = listingVideoExtension(file)
-      const flawsExt = listingVideoExtension(flawsFile)
-      const videoPath = `${ownerId}/${id}/video.${ext}`
-      const flawsPath = `${ownerId}/${id}/flaws.${flawsExt}`
+      const videoPath = `${ownerId}/${id}/video.mp4`
+      const flawsPath = `${ownerId}/${id}/flaws.mp4`
       const posterPath = `${ownerId}/${id}/poster.jpg`
 
-      const videoContentType = file.type || `video/${ext === 'mov' ? 'quicktime' : ext}`
-      const flawsContentType = flawsFile.type || `video/${flawsExt === 'mov' ? 'quicktime' : flawsExt}`
-
+      options?.onStatus?.('Videók feltöltése…')
       const { error: videoUploadError } = await supabase.storage
         .from('listing-videos')
         .upload(videoPath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: videoContentType,
+          contentType: 'video/mp4',
         })
       if (videoUploadError) {
         throw new Error(videoUploadError.message || 'Videó feltöltése sikertelen.')
@@ -186,7 +217,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         .upload(flawsPath, flawsFile, {
           cacheControl: '3600',
           upsert: false,
-          contentType: flawsContentType,
+          contentType: 'video/mp4',
         })
       if (flawsUploadError) {
         throw new Error(flawsUploadError.message || 'Hibák videó feltöltése sikertelen.')
@@ -203,6 +234,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         throw new Error(posterUploadError.message || 'Előnézet feltöltése sikertelen.')
       }
 
+      options?.onStatus?.('Hirdetés mentése…')
       const {
         data: { publicUrl: videoUrl },
       } = supabase.storage.from('listing-videos').getPublicUrl(videoPath)

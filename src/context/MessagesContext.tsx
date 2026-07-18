@@ -12,10 +12,14 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { useAuth } from './AuthContext'
 import type { Listing } from '../data/listings'
 import { formatListingTitle } from '../data/listings'
+import { compressVideoForUpload } from '../lib/compressVideo'
 import type { ConversationRow, MessageRow, ProfileRow } from '../lib/database.types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
-export const MAX_MESSAGE_VIDEO_BYTES = 40 * 1024 * 1024
+/** Max raw attachment size before compression */
+export const MAX_MESSAGE_VIDEO_BYTES = 150 * 1024 * 1024
+/** Max size after compression for upload */
+export const MAX_MESSAGE_VIDEO_UPLOAD_BYTES = 40 * 1024 * 1024
 export const ALLOWED_MESSAGE_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const
 
 export type ConversationSummary = {
@@ -457,26 +461,33 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       }
 
       if (file) {
-        if (!ALLOWED_MESSAGE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_MESSAGE_VIDEO_TYPES)[number])) {
-          return { error: 'Csak MP4, WebM vagy MOV videó csatolható.' }
+        if (!ALLOWED_MESSAGE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_MESSAGE_VIDEO_TYPES)[number]) && !file.type.startsWith('video/')) {
+          return { error: 'Csak videófájl csatolható.' }
         }
         if (file.size > MAX_MESSAGE_VIDEO_BYTES) {
-          return { error: 'A videó maximum 40 MB lehet.' }
+          return { error: 'A videó maximum 150 MB lehet.' }
         }
       }
 
       let videoPath: string | null = null
 
       if (file) {
-        const ext =
-          file.type === 'video/webm' ? 'webm' : file.type === 'video/quicktime' ? 'mov' : 'mp4'
-        const path = `${user.id}/${input.conversationId}/${crypto.randomUUID()}.${ext}`
+        let uploadFile: File
+        try {
+          uploadFile = await compressVideoForUpload(file)
+        } catch {
+          return { error: 'A videó tömörítése sikertelen.' }
+        }
+        if (uploadFile.size > MAX_MESSAGE_VIDEO_UPLOAD_BYTES) {
+          return { error: 'A tömörített videó még mindig túl nagy (max. 40 MB). Rövidítsd a felvételt.' }
+        }
+        const path = `${user.id}/${input.conversationId}/${crypto.randomUUID()}.mp4`
         const { error: uploadError } = await supabase.storage
           .from('message-videos')
-          .upload(path, file, {
+          .upload(path, uploadFile, {
             cacheControl: '3600',
             upsert: false,
-            contentType: file.type,
+            contentType: 'video/mp4',
           })
 
         if (uploadError) {
