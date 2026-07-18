@@ -38,6 +38,7 @@ export function ReelsPage() {
   const [statsVersion, setStatsVersion] = useState(0)
   const [statsMap, setStatsMap] = useState(() => new Map<string, ReelStats>())
   const [activeIndex, setActiveIndex] = useState(0)
+  const [userInteracted, setUserInteracted] = useState(false)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const sessionRef = useRef<SessionWatch | null>(null)
@@ -69,8 +70,18 @@ export function ReelsPage() {
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
+
+    const handleInteraction = () => {
+      setUserInteracted(true)
+    }
+
+    document.addEventListener('click', handleInteraction, { once: true })
+    document.addEventListener('touchstart', handleInteraction, { once: true })
+
     return () => {
       document.body.classList.remove('reels-mode')
+      document.removeEventListener('click', handleInteraction)
+      document.removeEventListener('touchstart', handleInteraction)
       const session = sessionRef.current
       if (session) {
         const listing = listingsRef.current.find((l) => l.id === session.listingId)
@@ -115,6 +126,9 @@ export function ReelsPage() {
     videoRefs.current.forEach((video, index) => {
       if (!video) return
       if (index === activeIndex) {
+        if (userInteracted) {
+          video.muted = false
+        }
         void video.play().catch(() => undefined)
       } else {
         video.pause()
@@ -132,7 +146,7 @@ export function ReelsPage() {
       }
       lastTickRef.current = 0
     }
-  }, [activeIndex, feed])
+  }, [activeIndex, feed, userInteracted])
 
   const onTimeUpdate = (listingId: string, video: HTMLVideoElement) => {
     const session = sessionRef.current
@@ -244,10 +258,11 @@ export function ReelsPage() {
                       const video = videoRefs.current[index]
                       if (!video) return
                       video.muted = !video.muted
+                      setUserInteracted(true)
                       if (!video.muted) void video.play().catch(() => undefined)
                     }}
                   >
-                    Hang
+                    {userInteracted && !videoRefs.current[index]?.muted ? 'Némítás' : 'Hang'}
                   </button>
                 </div>
               </div>
