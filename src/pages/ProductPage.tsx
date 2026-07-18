@@ -8,7 +8,13 @@ import { useListings } from '../context/ListingsContext'
 import { useCall } from '../context/CallContext'
 import { useMessages } from '../context/MessagesContext'
 import { listingIdFromSlug, listingPath } from '../lib/listingUrl'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { CallMode } from '../lib/callMedia'
+
+type SellerContact = {
+  email: string
+  phone: string | null
+}
 
 export function ProductPage() {
   const { make, model, slug } = useParams<{ make: string; model: string; slug: string }>()
@@ -19,6 +25,8 @@ export function ProductPage() {
   const { openOrCreateConversation } = useMessages()
   const [messageBusy, setMessageBusy] = useState(false)
   const [messageError, setMessageError] = useState<string | null>(null)
+  const [sellerContact, setSellerContact] = useState<SellerContact | null>(null)
+  const [contactLoading, setContactLoading] = useState(false)
 
   const id = slug ? listingIdFromSlug(slug) : undefined
   const listing = id ? getListing(id) : undefined
@@ -27,6 +35,40 @@ export function ProductPage() {
     if (!id || !listing) return
     void recordUniqueView(id, { excludeUserId: user?.id })
   }, [id, listing?.id, recordUniqueView, user?.id])
+
+  useEffect(() => {
+    if (!user || !listing?.ownerId || !isSupabaseConfigured) {
+      setSellerContact(null)
+      setContactLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setContactLoading(true)
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email, phone')
+        .eq('id', listing.ownerId!)
+        .maybeSingle()
+
+      if (cancelled) return
+      if (error || !data) {
+        setSellerContact(null)
+      } else {
+        setSellerContact({
+          email: data.email,
+          phone: data.phone,
+        })
+      }
+      setContactLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, listing?.ownerId])
 
   if (listingsLoading) {
     return (
@@ -265,6 +307,41 @@ export function ProductPage() {
                   {messageBusy ? 'Megnyitás…' : 'Üzenet küldése'}
                 </button>
                 {messageError && <p className="form-error">{messageError}</p>}
+              </div>
+
+              <div className="seller-card__contact">
+                <p className="seller-card__contact-label">Elérhetőség</p>
+                {user ? (
+                  contactLoading ? (
+                    <p className="seller-card__contact-locked">Betöltés…</p>
+                  ) : sellerContact ? (
+                    <ul className="seller-card__contact-list">
+                      <li>
+                        <span>E-mail</span>
+                        <a href={`mailto:${sellerContact.email}`}>{sellerContact.email}</a>
+                      </li>
+                      <li>
+                        <span>Telefon</span>
+                        {sellerContact.phone ? (
+                          <a href={`tel:${sellerContact.phone.replace(/\s+/g, '')}`}>
+                            {sellerContact.phone}
+                          </a>
+                        ) : (
+                          <em>Nincs megadva</em>
+                        )}
+                      </li>
+                    </ul>
+                  ) : (
+                    <p className="seller-card__contact-locked">
+                      Az eladó elérhetősége jelenleg nem elérhető.
+                    </p>
+                  )
+                ) : (
+                  <p className="seller-card__contact-locked">
+                    <Link to="/belepes">Belépés</Link>,{' '}
+                    <Link to="/regisztracio">regisztráció</Link> szükséges a megtekintéshez
+                  </p>
+                )}
               </div>
 
               <p className={`seller-card__hint${canCall ? '' : ' seller-card__hint--warn'}`}>{hint}</p>

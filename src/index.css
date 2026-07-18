@@ -1450,6 +1450,72 @@ ul {
   gap: 0.6rem;
 }
 
+.seller-card__contact {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.seller-card__contact-label {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 0.55rem;
+}
+
+.seller-card__contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.seller-card__contact-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.seller-card__contact-list span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.seller-card__contact-list a {
+  font-size: 0.925rem;
+  font-weight: 550;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.seller-card__contact-list a:hover {
+  color: var(--accent);
+}
+
+.seller-card__contact-list em {
+  font-size: 0.9rem;
+  font-style: normal;
+  color: var(--text-tertiary);
+}
+
+.seller-card__contact-locked {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.seller-card__contact-locked a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .seller-card__hint {
   margin-top: 0.85rem;
   font-size: 0.8125rem;

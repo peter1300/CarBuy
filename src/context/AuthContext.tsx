@@ -23,6 +23,7 @@ export type User = {
   companyName?: string
   sellerStatus?: 'online' | 'busy' | 'offline'
   avatarUrl?: string
+  phone?: string
 }
 
 type AuthContextValue = {
@@ -42,6 +43,7 @@ type AuthContextValue = {
     name: string
     email: string
     companyName?: string
+    phone?: string
     avatarFile?: File | null
     removeAvatar?: boolean
   }) => Promise<{ error?: string }>
@@ -62,6 +64,7 @@ function mapProfile(row: ProfileRow): User {
     companyName: row.company_name ?? undefined,
     sellerStatus: row.seller_status,
     avatarUrl: row.avatar_url ?? undefined,
+    phone: row.phone ?? undefined,
   }
 }
 
@@ -258,6 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: string
       email: string
       companyName?: string
+      phone?: string
       avatarFile?: File | null
       removeAvatar?: boolean
     }) => {
@@ -312,12 +316,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: string
         email: string
         company_name: string | null
+        phone: string | null
         avatar_url?: string | null
       } = {
         name: data.name.trim(),
         email: data.email.trim(),
         company_name:
           user.accountType === 'business' ? (data.companyName?.trim() || null) : null,
+        phone: data.phone?.trim() ? data.phone.trim() : null,
       }
       if (nextAvatarUrl !== undefined) {
         patch.avatar_url = nextAvatarUrl
@@ -331,10 +337,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (error || !row) {
-        if (error?.message && /avatar_url/i.test(error.message)) {
+        if (error?.message && /avatar_url|phone/i.test(error.message)) {
           return {
             error:
-              'A profil mentése sikertelen. Futtasd a supabase/migrations/007_profile_avatar.sql fájlt a Supabase SQL Editorban.',
+              'A profil mentése sikertelen. Futtasd a supabase/migrations/007_profile_avatar.sql és 008_profile_phone.sql fájlokat a Supabase SQL Editorban.',
           }
         }
         return { error: error?.message ?? 'Mentés sikertelen.' }

@@ -10,6 +10,7 @@ export function EditProfilePage() {
   const { refreshListings } = useListings()
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
+  const [phone, setPhone] = useState(user?.phone ?? '')
   const [companyName, setCompanyName] = useState(user?.companyName ?? '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -74,6 +75,7 @@ export function EditProfilePage() {
     const result = await updateProfile({
       name,
       email,
+      phone,
       companyName: user.accountType === 'business' ? companyName : undefined,
       avatarFile: avatarFile ?? undefined,
       removeAvatar: removeAvatar || undefined,
@@ -188,6 +190,20 @@ export function EditProfilePage() {
                   setEmail(e.target.value)
                   setSaved(false)
                 }}
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="edit-phone">Telefonszám</label>
+              <input
+                id="edit-phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value)
+                  setSaved(false)
+                }}
+                placeholder="+36 30 123 4567"
+                autoComplete="tel"
               />
             </div>
             {formError && <p className="form-error">{formError}</p>}
