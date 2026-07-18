@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { UserAvatar } from '../components/UserAvatar'
+import { DeleteListingDialog, type DeletionReason } from '../components/DeleteListingDialog'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
+import type { Listing } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
 import { StatusBadge } from '../components/StatusBadge'
 
 export function ProfilePage() {
   const { user, loading: authLoading, logout } = useAuth()
   const { getListingsForUser, removeListing, loading: listingsLoading, error } = useListings()
+  const [deletingListing, setDeletingListing] = useState<Listing | null>(null)
 
   if (authLoading) {
     return (
@@ -140,7 +144,7 @@ export function ProfilePage() {
                         <button
                           type="button"
                           className="btn btn--ghost"
-                          onClick={() => void removeListing(listing.id)}
+                          onClick={() => setDeletingListing(listing)}
                         >
                           Törlés
                         </button>
@@ -153,6 +157,17 @@ export function ProfilePage() {
           )}
         </section>
       </div>
+
+      {deletingListing && (
+        <DeleteListingDialog
+          listing={deletingListing}
+          onConfirm={(reason: DeletionReason) => {
+            void removeListing(deletingListing.id, reason)
+            setDeletingListing(null)
+          }}
+          onCancel={() => setDeletingListing(null)}
+        />
+      )}
     </main>
   )
 }

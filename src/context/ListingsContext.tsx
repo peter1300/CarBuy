@@ -48,7 +48,7 @@ type ListingsContextValue = {
   ) => Promise<Listing>
   getListing: (id: string) => Listing | undefined
   getListingsForUser: (userId: string) => Listing[]
-  removeListing: (id: string) => Promise<void>
+  removeListing: (id: string, reason?: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold') => Promise<void>
   recordUniqueView: (listingId: string, options?: { excludeUserId?: string }) => Promise<void>
   getUniqueViews: (listingId: string) => number
 }
@@ -310,14 +310,31 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     [listings],
   )
 
-  const removeListing = useCallback(async (id: string) => {
-    if (!isSupabaseConfigured) throw new Error('Supabase nincs beállítva.')
+  const removeListing = useCallback(
+    async (id: string, reason?: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold') => {
+      if (!isSupabaseConfigured) throw new Error('Supabase nincs beállítva.')
 
-    const { error: deleteError } = await supabase.from('listings').delete().eq('id', id)
-    if (deleteError) throw new Error(deleteError.message)
+      const listing = listings.find((l) => l.id === id)
 
-    setListings((prev) => prev.filter((l) => l.id !== id))
-  }, [])
+      if (reason && listing?.ownerId) {
+        await supabase.from('listing_deletions').insert({
+          listing_id: id,
+          owner_id: listing.ownerId,
+          reason,
+          listing_title: listing.title,
+          listing_make: listing.make,
+          listing_model: listing.model,
+          listing_price: listing.price,
+        })
+      }
+
+      const { error: deleteError } = await supabase.from('listings').delete().eq('id', id)
+      if (deleteError) throw new Error(deleteError.message)
+
+      setListings((prev) => prev.filter((l) => l.id !== id))
+    },
+    [listings],
+  )
 
   const getUniqueViews = useCallback(
     (listingId: string) => listings.find((l) => l.id === listingId)?.uniqueViews ?? 0,
