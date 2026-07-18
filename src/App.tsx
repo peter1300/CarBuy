@@ -18,6 +18,7 @@ import { EditProfilePage } from './pages/EditProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MessagesInboxPage, MessagesChatPage } from './pages/MessagesPage'
 import { ReelsPage } from './pages/ReelsPage'
+import { AdminPage } from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
                   <Route path="/profil/beallitasok" element={<SettingsPage />} />
                   <Route path="/uzenetek" element={<MessagesInboxPage />} />
                   <Route path="/uzenetek/:conversationId" element={<MessagesChatPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
                 </Routes>
                 <Footer />
                 <CallOverlay />
