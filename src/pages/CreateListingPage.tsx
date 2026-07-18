@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import { ListingVideoRecorder } from '../components/ListingVideoRecorder'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
 import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
 import {
-  ALLOWED_LISTING_VIDEO_TYPES,
+  isAllowedListingVideo,
+  LISTING_VIDEO_ACCEPT,
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
+import { canUseInAppRecorder } from '../lib/videoRecorder'
 import { listingPath } from '../lib/listingUrl'
 import { formatListingTitle, type Listing } from '../data/listings'
 
@@ -35,6 +38,7 @@ export function CreateListingPage() {
   const [flawsPreviewUrl, setFlawsPreviewUrl] = useState<string | null>(null)
   const [flawsError, setFlawsError] = useState<string | null>(null)
   const flawsInputRef = useRef<HTMLInputElement>(null)
+  const [recorderTarget, setRecorderTarget] = useState<'main' | 'flaws' | null>(null)
   const [title, setTitle] = useState('')
   const [make, setMake] = useState('')
   const [model, setModel] = useState('')
@@ -143,13 +147,13 @@ export function CreateListingPage() {
       setVideoFile(null)
       return
     }
-    if (!ALLOWED_LISTING_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])) {
-      setVideoError('Csak MP4, WebM vagy MOV fájl tölthető fel.')
+    if (!isAllowedListingVideo(file)) {
+      setVideoError('Csak videófájl tölthető fel (MP4, MOV, WebM).')
       setVideoFile(null)
       return
     }
     if (file.size > MAX_LISTING_VIDEO_BYTES) {
-      setVideoError('A videó maximum 100 MB lehet.')
+      setVideoError('A videó maximum 150 MB lehet.')
       setVideoFile(null)
       return
     }
@@ -162,18 +166,20 @@ export function CreateListingPage() {
       setFlawsVideoFile(null)
       return
     }
-    if (!ALLOWED_LISTING_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])) {
-      setFlawsError('Csak MP4, WebM vagy MOV fájl tölthető fel.')
+    if (!isAllowedListingVideo(file)) {
+      setFlawsError('Csak videófájl tölthető fel (MP4, MOV, WebM).')
       setFlawsVideoFile(null)
       return
     }
     if (file.size > MAX_LISTING_VIDEO_BYTES) {
-      setFlawsError('A videó maximum 100 MB lehet.')
+      setFlawsError('A videó maximum 150 MB lehet.')
       setFlawsVideoFile(null)
       return
     }
     setFlawsVideoFile(file)
   }
+
+  const recorderSupported = canUseInAppRecorder()
 
   if (publishedListing) {
     return (
@@ -269,15 +275,12 @@ export function CreateListingPage() {
                 <input
                   ref={videoInputRef}
                   type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
+                  accept={LISTING_VIDEO_ACCEPT}
                   className="sr-only"
                   onChange={(e) => onPickVideo(e.target.files?.[0] ?? null)}
                 />
-                <button
-                  type="button"
-                  className={`video-dropzone${videoFile ? ' is-filled' : ''}`}
-                  onClick={() => videoInputRef.current?.click()}
-                >
+
+                <div className={`video-dropzone${videoFile ? ' is-filled' : ''}`}>
                   {videoFile && videoPreviewUrl ? (
                     <>
                       <video
@@ -286,11 +289,10 @@ export function CreateListingPage() {
                         muted
                         playsInline
                         preload="metadata"
+                        controls
                       />
                       <strong>{videoFile.name}</strong>
-                      <span>
-                        {(videoFile.size / (1024 * 1024)).toFixed(1)} MB · kattints másik videóhoz
-                      </span>
+                      <span>{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</span>
                     </>
                   ) : (
                     <>
@@ -308,21 +310,40 @@ export function CreateListingPage() {
                           <path d="M17 16.5v7l7-3.5-7-3.5z" fill="currentColor" />
                         </svg>
                       </span>
-                      <strong>Videó feltöltése</strong>
-                      <span>MP4, WebM vagy MOV · max. 100 MB</span>
+                      <strong>Még nincs bemutatóvideó</strong>
+                      <span>Válassz galériából, vagy vedd fel jobb minőségben a kamerával</span>
                     </>
                   )}
-                </button>
+                </div>
+
+                <div className="video-source-actions">
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => videoInputRef.current?.click()}
+                  >
+                    Galériából
+                  </button>
+                  {recorderSupported && (
+                    <button
+                      type="button"
+                      className="btn btn--accent"
+                      onClick={() => setRecorderTarget('main')}
+                    >
+                      Kamerával felvétel
+                    </button>
+                  )}
+                </div>
                 {videoError && <p className="form-error">{videoError}</p>}
 
                 <div className="tip-row">
                   <article className="mini-tip">
-                    <strong>Jó fény</strong>
-                    <span>Nappali fény vagy tiszta csarnokvilágítás.</span>
+                    <strong>Jobb minőség</strong>
+                    <span>A „Kamerával felvétel” 1080p-ben rögzít a böngészőben.</span>
                   </article>
                   <article className="mini-tip">
-                    <strong>Lassú pan</strong>
-                    <span>Ne siess — a vevő a részleteket keresi.</span>
+                    <strong>Jó fény</strong>
+                    <span>Nappali fény vagy tiszta csarnokvilágítás.</span>
                   </article>
                   <article className="mini-tip">
                     <strong>Hang is számít</strong>
@@ -343,15 +364,12 @@ export function CreateListingPage() {
                 <input
                   ref={flawsInputRef}
                   type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
+                  accept={LISTING_VIDEO_ACCEPT}
                   className="sr-only"
                   onChange={(e) => onPickFlawsVideo(e.target.files?.[0] ?? null)}
                 />
-                <button
-                  type="button"
-                  className={`video-dropzone${flawsVideoFile ? ' is-filled' : ''}`}
-                  onClick={() => flawsInputRef.current?.click()}
-                >
+
+                <div className={`video-dropzone${flawsVideoFile ? ' is-filled' : ''}`}>
                   {flawsVideoFile && flawsPreviewUrl ? (
                     <>
                       <video
@@ -360,12 +378,10 @@ export function CreateListingPage() {
                         muted
                         playsInline
                         preload="metadata"
+                        controls
                       />
                       <strong>{flawsVideoFile.name}</strong>
-                      <span>
-                        {(flawsVideoFile.size / (1024 * 1024)).toFixed(1)} MB · kattints másik
-                        videóhoz
-                      </span>
+                      <span>{(flawsVideoFile.size / (1024 * 1024)).toFixed(1)} MB</span>
                     </>
                   ) : (
                     <>
@@ -384,10 +400,29 @@ export function CreateListingPage() {
                         </svg>
                       </span>
                       <strong>Hibák videó feltöltése</strong>
-                      <span>Karcok, kopások, apró esztétikai hibák · max. 100 MB</span>
+                      <span>Karcok, kopások · max. 150 MB</span>
                     </>
                   )}
-                </button>
+                </div>
+
+                <div className="video-source-actions">
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => flawsInputRef.current?.click()}
+                  >
+                    Galériából
+                  </button>
+                  {recorderSupported && (
+                    <button
+                      type="button"
+                      className="btn btn--accent"
+                      onClick={() => setRecorderTarget('flaws')}
+                    >
+                      Kamerával felvétel
+                    </button>
+                  )}
+                </div>
                 {flawsError && <p className="form-error">{flawsError}</p>}
 
                 <div className="honesty-note">
@@ -721,6 +756,16 @@ export function CreateListingPage() {
           </aside>
         </div>
       </div>
+
+      <ListingVideoRecorder
+        open={recorderTarget !== null}
+        title={recorderTarget === 'flaws' ? 'Hibák videó felvétele' : 'Bemutatóvideó felvétele'}
+        onClose={() => setRecorderTarget(null)}
+        onRecorded={(file) => {
+          if (recorderTarget === 'flaws') onPickFlawsVideo(file)
+          else onPickVideo(file)
+        }}
+      />
     </main>
   )
 }

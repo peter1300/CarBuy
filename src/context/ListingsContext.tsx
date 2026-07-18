@@ -11,8 +11,9 @@ import type { Listing, SellerStatus } from '../data/listings'
 import { ensureProfile, type User } from './AuthContext'
 import { createListingId } from '../lib/listingUrl'
 import {
-  ALLOWED_LISTING_VIDEO_TYPES,
   captureVideoPoster,
+  isAllowedListingVideo,
+  listingVideoExtension,
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
 import { mapListingRow } from '../lib/mapListing'
@@ -143,45 +144,38 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       ]
 
       const file = input.videoFile
-      if (!ALLOWED_LISTING_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])) {
-        throw new Error('Csak MP4, WebM vagy MOV videó tölthető fel.')
+      if (!isAllowedListingVideo(file)) {
+        throw new Error('Csak videófájl tölthető fel (MP4, MOV, WebM).')
       }
       if (file.size > MAX_LISTING_VIDEO_BYTES) {
-        throw new Error('A videó maximum 100 MB lehet.')
+        throw new Error('A videó maximum 150 MB lehet.')
       }
 
       const flawsFile = input.flawsVideoFile
-      if (
-        !ALLOWED_LISTING_VIDEO_TYPES.includes(
-          flawsFile.type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number],
-        )
-      ) {
-        throw new Error('A hibák videója csak MP4, WebM vagy MOV lehet.')
+      if (!isAllowedListingVideo(flawsFile)) {
+        throw new Error('A hibák videója csak videófájl lehet (MP4, MOV, WebM).')
       }
       if (flawsFile.size > MAX_LISTING_VIDEO_BYTES) {
-        throw new Error('A hibák videója maximum 100 MB lehet.')
+        throw new Error('A hibák videója maximum 150 MB lehet.')
       }
 
       const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)
 
-      const ext =
-        file.type === 'video/webm' ? 'webm' : file.type === 'video/quicktime' ? 'mov' : 'mp4'
-      const flawsExt =
-        flawsFile.type === 'video/webm'
-          ? 'webm'
-          : flawsFile.type === 'video/quicktime'
-            ? 'mov'
-            : 'mp4'
+      const ext = listingVideoExtension(file)
+      const flawsExt = listingVideoExtension(flawsFile)
       const videoPath = `${ownerId}/${id}/video.${ext}`
       const flawsPath = `${ownerId}/${id}/flaws.${flawsExt}`
       const posterPath = `${ownerId}/${id}/poster.jpg`
+
+      const videoContentType = file.type || `video/${ext === 'mov' ? 'quicktime' : ext}`
+      const flawsContentType = flawsFile.type || `video/${flawsExt === 'mov' ? 'quicktime' : flawsExt}`
 
       const { error: videoUploadError } = await supabase.storage
         .from('listing-videos')
         .upload(videoPath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: file.type,
+          contentType: videoContentType,
         })
       if (videoUploadError) {
         throw new Error(videoUploadError.message || 'Videó feltöltése sikertelen.')
@@ -192,7 +186,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         .upload(flawsPath, flawsFile, {
           cacheControl: '3600',
           upsert: false,
-          contentType: flawsFile.type,
+          contentType: flawsContentType,
         })
       if (flawsUploadError) {
         throw new Error(flawsUploadError.message || 'Hibák videó feltöltése sikertelen.')

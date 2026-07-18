@@ -1,11 +1,49 @@
-export const MAX_LISTING_VIDEO_BYTES = 100 * 1024 * 1024
-export const ALLOWED_LISTING_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const
+export const MAX_LISTING_VIDEO_BYTES = 150 * 1024 * 1024
+
+/** Preferált MIME-ek; mobilok gyakran üres type-ot vagy 3GPP-t adnak. */
+export const ALLOWED_LISTING_VIDEO_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/3gpp',
+  'video/3gpp2',
+  'video/x-m4v',
+] as const
+
+const ALLOWED_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v', '.3gp', '.3gpp'] as const
+
+/** File picker: video/* → natív galéria/kamera, jobb minőség mobilon. */
+export const LISTING_VIDEO_ACCEPT = 'video/*,.mp4,.mov,.webm,.m4v,.3gp'
 
 export function formatVideoDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+export function isAllowedListingVideo(file: File): boolean {
+  const type = file.type.toLowerCase()
+  if (type.startsWith('video/')) return true
+  if (
+    ALLOWED_LISTING_VIDEO_TYPES.includes(type as (typeof ALLOWED_LISTING_VIDEO_TYPES)[number])
+  ) {
+    return true
+  }
+  const name = file.name.toLowerCase()
+  return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext))
+}
+
+export function listingVideoExtension(file: File): string {
+  const type = file.type.toLowerCase()
+  if (type === 'video/webm') return 'webm'
+  if (type === 'video/quicktime') return 'mov'
+  if (type === 'video/3gpp' || type === 'video/3gpp2') return '3gp'
+  if (type === 'video/x-m4v') return 'm4v'
+  const name = file.name.toLowerCase()
+  const match = ALLOWED_EXTENSIONS.find((ext) => name.endsWith(ext))
+  if (match) return match.slice(1)
+  return 'mp4'
 }
 
 /** Capture a JPEG poster frame and duration from a local video file. */
