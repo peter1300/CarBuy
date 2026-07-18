@@ -100,18 +100,21 @@ export function ProductPage() {
     return <Navigate to={canonical} replace />
   }
 
-  const canCall = listing.seller.status === 'online' && !call
+  const isOwnListing = Boolean(user && listing.ownerId && listing.ownerId === user.id)
+  const canCall = !isOwnListing && listing.seller.status === 'online' && !call
+  const canMessage = !isOwnListing && Boolean(listing.ownerId) && !messageBusy
   const displayTitle = formatListingTitle(listing)
 
-  const hint =
-    listing.seller.status === 'online'
+  const hint = isOwnListing
+    ? 'Ez a te hirdetésed — hívást és üzenetet csak érdeklődők indíthatnak.'
+    : listing.seller.status === 'online'
       ? 'Az eladó elérhető — indíts hang- vagy videóhívást közvetlenül a platformon.'
       : listing.seller.status === 'busy'
         ? 'Az eladó jelenleg elfoglalt. Próbáld újra, amint Online státuszra vált.'
         : 'Az eladó Offline. Hívás csak Online státuszban indítható.'
 
   const handleCall = (mode: CallMode) => {
-    if (listing.seller.status !== 'online') return
+    if (isOwnListing || listing.seller.status !== 'online') return
     if (!user) {
       navigate('/belepes', { state: { from: canonical } })
       return
@@ -120,6 +123,7 @@ export function ProductPage() {
   }
 
   const handleMessage = async () => {
+    if (isOwnListing) return
     if (!user) {
       navigate('/belepes', { state: { from: canonical } })
       return
@@ -301,7 +305,7 @@ export function ProductPage() {
                 <button
                   type="button"
                   className="btn btn--ghost btn--block"
-                  disabled={messageBusy || Boolean(user && listing.ownerId === user.id) || !listing.ownerId}
+                  disabled={!canMessage}
                   onClick={() => void handleMessage()}
                 >
                   {messageBusy ? 'Megnyitás…' : 'Üzenet küldése'}
@@ -344,7 +348,9 @@ export function ProductPage() {
                 )}
               </div>
 
-              <p className={`seller-card__hint${canCall ? '' : ' seller-card__hint--warn'}`}>{hint}</p>
+              <p className={`seller-card__hint${canCall || isOwnListing ? '' : ' seller-card__hint--warn'}`}>
+                {hint}
+              </p>
             </div>
           </aside>
         </div>
