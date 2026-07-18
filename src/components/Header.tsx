@@ -77,6 +77,7 @@ export function Header() {
         <nav className="nav-links" aria-label="Fő navigáció">
           <a href="/#kereses">Keresés</a>
           <Link to="/hirdetesek">Hirdetések</Link>
+          <Link to="/reels">Reels</Link>
           <Link to="/hirdetes-feladas">Hirdetésfeladás</Link>
         </nav>
 
@@ -233,6 +234,9 @@ export function Header() {
         </a>
         <Link to="/hirdetesek" onClick={closeMenu}>
           Hirdetések
+        </Link>
+        <Link to="/reels" onClick={closeMenu}>
+          Reels
         </Link>
         <Link to="/hirdetes-feladas" onClick={closeMenu}>
           Hirdetésfeladás

@@ -17,6 +17,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { EditProfilePage } from './pages/EditProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MessagesInboxPage, MessagesChatPage } from './pages/MessagesPage'
+import { ReelsPage } from './pages/ReelsPage'
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
                 <Header />
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
+                  <Route path="/reels" element={<ReelsPage />} />
                   <Route path="/hirdetesek" element={<ListingsPage />} />
                   <Route path="/szemelyauto" element={<CategoryPage />} />
                   <Route path="/szemelyauto/:make" element={<CategoryPage />} />

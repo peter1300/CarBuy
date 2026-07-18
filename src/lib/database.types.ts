@@ -225,12 +225,48 @@ export type Database = {
         }
         Relationships: []
       }
+      reel_stats: {
+        Row: {
+          listing_id: string
+          impressions: number
+          total_watch_ms: number
+          completions: number
+          avg_watch_ratio: number
+          updated_at: string
+        }
+        Insert: {
+          listing_id: string
+          impressions?: number
+          total_watch_ms?: number
+          completions?: number
+          avg_watch_ratio?: number
+          updated_at?: string
+        }
+        Update: {
+          listing_id?: string
+          impressions?: number
+          total_watch_ms?: number
+          completions?: number
+          avg_watch_ratio?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
       record_unique_view: {
         Args: { p_listing_id: string; p_visitor_id: string }
         Returns: number
+      }
+      record_reel_watch: {
+        Args: {
+          p_listing_id: string
+          p_watch_ms: number
+          p_duration_ms: number
+          p_completed?: boolean
+        }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>
