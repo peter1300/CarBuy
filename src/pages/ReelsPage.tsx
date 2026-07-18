@@ -73,15 +73,23 @@ export function ReelsPage() {
 
     const handleInteraction = () => {
       setUserInteracted(true)
+      const video = videoRefs.current[activeIndex]
+      if (video) {
+        video.muted = false
+        void video.play().catch(() => undefined)
+      }
     }
 
+    const scroller = scrollerRef.current
     document.addEventListener('click', handleInteraction, { once: true })
     document.addEventListener('touchstart', handleInteraction, { once: true })
+    scroller?.addEventListener('scroll', handleInteraction, { once: true, passive: true })
 
     return () => {
       document.body.classList.remove('reels-mode')
       document.removeEventListener('click', handleInteraction)
       document.removeEventListener('touchstart', handleInteraction)
+      scroller?.removeEventListener('scroll', handleInteraction)
       const session = sessionRef.current
       if (session) {
         const listing = listingsRef.current.find((l) => l.id === session.listingId)
@@ -89,7 +97,7 @@ export function ReelsPage() {
         sessionRef.current = null
       }
     }
-  }, [])
+  }, [activeIndex])
 
   useEffect(() => {
     const root = scrollerRef.current
@@ -215,9 +223,18 @@ export function ReelsPage() {
                 src={listing.videoUrl}
                 poster={listing.videoPoster}
                 playsInline
-                muted
+                muted={!userInteracted}
                 loop
+                autoPlay={index === activeIndex}
                 preload={Math.abs(index - activeIndex) <= 1 ? 'auto' : 'metadata'}
+                onClick={(e) => {
+                  const video = e.currentTarget
+                  if (video.paused) {
+                    setUserInteracted(true)
+                    video.muted = false
+                    void video.play().catch(() => undefined)
+                  }
+                }}
                 onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
                 onEnded={(e) => {
                   const session = sessionRef.current
