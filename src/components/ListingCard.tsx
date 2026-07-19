@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Listing } from '../data/listings'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
+import { FavoriteButton } from './FavoriteButton'
 import { StatusBadge } from './StatusBadge'
 
 type Props = {
@@ -15,6 +16,7 @@ export function ListingCard({ listing }: Props) {
     <Link to={listingPath(listing)} className="listing-card">
       <div className="listing-card__media">
         <img src={listing.videoPoster} alt={`${displayTitle} videó előnézet`} loading="lazy" />
+        <FavoriteButton listing={listing} className="listing-card__fav" size="sm" />
         <div className="listing-card__play">
           <span className="play-btn" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

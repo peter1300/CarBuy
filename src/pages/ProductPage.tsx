@@ -1,6 +1,7 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
+import { FavoriteButton } from '../components/FavoriteButton'
 import { StatusBadge } from '../components/StatusBadge'
 import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
@@ -8,6 +9,7 @@ import { useListings } from '../context/ListingsContext'
 import { useCall } from '../context/CallContext'
 import { useMessages } from '../context/MessagesContext'
 import { listingIdFromSlug, listingPath } from '../lib/listingUrl'
+import { rememberListingOpen } from '../lib/reels'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { CallMode } from '../lib/callMedia'
 
@@ -34,6 +36,7 @@ export function ProductPage() {
   useEffect(() => {
     if (!id || !listing) return
     void recordUniqueView(id, { excludeUserId: user?.id })
+    rememberListingOpen(listing)
   }, [id, listing?.id, recordUniqueView, user?.id])
 
   useEffect(() => {
@@ -163,6 +166,7 @@ export function ProductPage() {
         <div className="product__layout">
           <div className="product__main">
             <div className="product-video">
+              <FavoriteButton listing={listing} className="product-video__fav" />
               {listing.videoUrl ? (
                 <video
                   className="product-video__player"

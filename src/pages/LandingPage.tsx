@@ -2,14 +2,21 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ListingCard } from '../components/ListingCard'
 import { SearchPanel } from '../components/SearchPanel'
+import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
 import { formatListingTitle, formatPrice } from '../data/listings'
+import {
+  hasPersonalization,
+  loadReelPrefs,
+  rankRecommendedListings,
+} from '../lib/reels'
 
 const HOME_LISTINGS_LIMIT = 8
 const REELS_PREVIEW_LIMIT = 8
 
 export function LandingPage() {
   const { listings, loading, error } = useListings()
+  const { favoriteIds } = useFavorites()
 
   const newestListings = useMemo(
     () =>
@@ -23,6 +30,14 @@ export function LandingPage() {
     [listings],
   )
 
+  const recommendedListings = useMemo(() => {
+    const prefs = loadReelPrefs()
+    if (!hasPersonalization(prefs)) return []
+    return rankRecommendedListings(listings, prefs, HOME_LISTINGS_LIMIT)
+    // favoriteIds invalidates after save/remove
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listings, favoriteIds])
+
   const reelsPreview = useMemo(
     () =>
       listings
@@ -30,6 +45,11 @@ export function LandingPage() {
         .slice(0, REELS_PREVIEW_LIMIT),
     [listings],
   )
+
+  const showRecommended = recommendedListings.length > 0
+  const freshWithoutRecommended = showRecommended
+    ? newestListings.filter((l) => !recommendedListings.some((r) => r.id === l.id)).slice(0, 4)
+    : newestListings
 
   return (
     <main className="page">
@@ -101,6 +121,29 @@ export function LandingPage() {
         </div>
       </section>
 
+      {showRecommended && (
+        <section className="section" id="ajanlasok">
+          <div className="container">
+            <div className="section__header">
+              <div>
+                <h2 className="section__title">Neked ajánlott</h2>
+                <p className="section__sub">
+                  Kedvenceid és megnyitott hirdetéseid alapján — hasonló márkák és kategóriák.
+                </p>
+              </div>
+              <Link to="/kedvencek" className="btn btn--outline">
+                Kedvencek
+              </Link>
+            </div>
+            <div className="listings-grid">
+              {recommendedListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="section" id="hirdetesek">
         <div className="container">
           <div className="section__header">
@@ -120,12 +163,12 @@ export function LandingPage() {
 
           {loading && <p className="state-message">Hirdetések betöltése…</p>}
           {error && !loading && <p className="form-error">{error}</p>}
-          {!loading && !error && newestListings.length === 0 && (
+          {!loading && !error && freshWithoutRecommended.length === 0 && !showRecommended && (
             <p className="state-message">Még nincsenek hirdetések. Légy te az első!</p>
           )}
-          {!loading && newestListings.length > 0 && (
+          {!loading && freshWithoutRecommended.length > 0 && (
             <div className="listings-grid">
-              {newestListings.map((listing) => (
+              {freshWithoutRecommended.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>

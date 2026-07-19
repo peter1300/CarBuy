@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import type { Listing } from '../data/listings'
@@ -12,6 +13,7 @@ import {
   reportReelWatch,
   type ReelStats,
 } from '../lib/reels'
+import { FavoriteButton } from '../components/FavoriteButton'
 import { StatusBadge } from '../components/StatusBadge'
 
 type SessionWatch = {
@@ -34,6 +36,7 @@ function flushWatch(session: SessionWatch, listing: Listing | undefined) {
 
 export function ReelsPage() {
   const { listings, loading, error } = useListings()
+  const { favoriteIds } = useFavorites()
   const [statsReady, setStatsReady] = useState(false)
   const [statsVersion, setStatsVersion] = useState(0)
   const [statsMap, setStatsMap] = useState(() => new Map<string, ReelStats>())
@@ -62,9 +65,9 @@ export function ReelsPage() {
   const feed = useMemo(() => {
     const prefs = loadReelPrefs()
     return rankReelsFeed(listings, statsMap, prefs)
-    // statsVersion forces re-rank after stats load
+    // statsVersion / favoriteIds force re-rank after prefs change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listings, statsMap, statsVersion])
+  }, [listings, statsMap, statsVersion, favoriteIds])
 
   listingsRef.current = feed
 
@@ -265,6 +268,7 @@ export function ReelsPage() {
                 </div>
 
                 <div className="reel-slide__actions">
+                  <FavoriteButton listing={listing} className="reel-slide__fav" />
                   <Link to={listingPath(listing)} className="btn btn--accent btn--lg">
                     Hirdetés
                   </Link>

@@ -1,10 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useFavorites } from '../context/FavoritesContext'
 import { useMessages } from '../context/MessagesContext'
 
 export function Header() {
   const { user, logout } = useAuth()
+  const { favoriteIds } = useFavorites()
   const { unreadCount } = useMessages()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -16,6 +18,9 @@ export function Header() {
     user?.accountType === 'business' && user.companyName ? user.companyName : user?.name
 
   const badgeLabel = unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : null
+  const favoritesCount = favoriteIds.size
+  const favoritesBadge =
+    favoritesCount > 99 ? '99+' : favoritesCount > 0 ? String(favoritesCount) : null
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -91,6 +96,25 @@ export function Header() {
         <div className="header-actions">
           {user ? (
             <>
+              <Link
+                to="/kedvencek"
+                className="header-mail header-fav"
+                aria-label={
+                  favoritesCount > 0
+                    ? `Kedvencek, ${favoritesCount} mentett autó`
+                    : 'Kedvencek'
+                }
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path
+                    d="M10 17.25s-6.2-3.85-8.1-7.05C.4 7.7 1.15 4.6 3.85 3.55 5.55 2.9 7.45 3.35 10 5.4c2.55-2.05 4.45-2.5 6.15-1.85 2.7 1.05 3.45 4.15 1.95 6.65C16.2 13.4 10 17.25 10 17.25z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {favoritesBadge && <span className="header-mail__badge">{favoritesBadge}</span>}
+              </Link>
               <Link
                 to="/uzenetek"
                 className="header-mail"
@@ -264,6 +288,9 @@ export function Header() {
             </Link>
             <Link to="/profil" onClick={closeMenu}>
               Saját hirdetéseim
+            </Link>
+            <Link to="/kedvencek" onClick={closeMenu}>
+              Kedvencek
             </Link>
             <button
               type="button"

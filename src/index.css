@@ -1042,6 +1042,13 @@ ul {
   transform: scale(1.04);
 }
 
+.listing-card__fav {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 2;
+}
+
 .listing-card__play {
   position: absolute;
   inset: 0;
@@ -1380,6 +1387,13 @@ body.reels-mode .site-footer {
   background: #1a1a1c;
   aspect-ratio: 16 / 9;
   box-shadow: var(--shadow-md);
+}
+
+.product-video__fav {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 3;
 }
 
 .product-video img {
@@ -1939,6 +1953,11 @@ a.btn {
 
 .header-mail:hover {
   background: var(--bg-muted);
+}
+
+.header-fav.is-active,
+.header-fav:hover {
+  color: #d93838;
 }
 
 .header-mail__badge {
@@ -4086,6 +4105,11 @@ a.btn {
   flex-direction: column;
   gap: 0.55rem;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.reel-slide__fav {
+  margin-bottom: 0.15rem;
 }
 
 .reel-slide__actions .btn {
@@ -4675,6 +4699,81 @@ a.btn {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
+}
+
+/* —— Favorites —— */
+.favorite-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease-out),
+    background 0.2s,
+    color 0.2s;
+}
+
+.favorite-btn--sm {
+  width: 34px;
+  height: 34px;
+}
+
+.favorite-btn--sm svg {
+  width: 16px;
+  height: 16px;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.06);
+  background: #fff;
+}
+
+.favorite-btn.is-active {
+  color: #d93838;
+  background: #fff;
+}
+
+.reel-slide__fav.favorite-btn {
+  background: rgba(17, 17, 19, 0.45);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+
+.reel-slide__fav.favorite-btn.is-active {
+  color: #ff6b6b;
+  background: rgba(17, 17, 19, 0.55);
+}
+
+.favorites-page {
+  padding: 1.5rem 0 3.5rem;
+}
+
+.favorites-page__header {
+  margin-bottom: 1.5rem;
+}
+
+.favorites-page__empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+.favorites-page__empty > p:first-child {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 
