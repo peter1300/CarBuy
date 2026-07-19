@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth, type AccountType } from '../context/AuthContext'
+import { useLocale } from '../i18n/LocaleContext'
 
 type Step = 'choose' | 'form'
 
 export function RegisterPage() {
   const { register } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('choose')
   const [accountType, setAccountType] = useState<AccountType | null>(null)
@@ -126,7 +128,7 @@ export function RegisterPage() {
               </div>
 
               <p className="auth-panel__switch">
-                Van már fiókod? <Link to="/belepes">Belépés</Link>
+                {t('auth.hasAccount')} <Link to="/belepes">{t('auth.loginLink')}</Link>
               </p>
             </div>
           ) : (
@@ -178,7 +180,7 @@ export function RegisterPage() {
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="email">E-mail</label>
+                  <label htmlFor="email">{t('auth.email')}</label>
                   <input
                     id="email"
                     type="email"
@@ -191,7 +193,7 @@ export function RegisterPage() {
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="password">Jelszó</label>
+                  <label htmlFor="password">{t('auth.password')}</label>
                   <input
                     id="password"
                     type="password"
@@ -229,7 +231,7 @@ export function RegisterPage() {
               </div>
 
               <p className="auth-panel__switch">
-                Van már fiókod? <Link to="/belepes">Belépés</Link>
+                {t('auth.hasAccount')} <Link to="/belepes">{t('auth.loginLink')}</Link>
               </p>
             </form>
           )}

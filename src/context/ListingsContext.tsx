@@ -9,6 +9,8 @@ import {
 } from 'react'
 import type { Listing, SellerStatus } from '../data/listings'
 import { ensureProfile, type User } from './AuthContext'
+import { useLocale } from '../i18n/LocaleContext'
+import type { MarketCountry } from '../i18n/locales'
 import { createListingId } from '../lib/listingUrl'
 import {
   captureVideoPoster,
@@ -30,6 +32,7 @@ export type UserListingInput = {
   transmission: string
   power: number
   location: string
+  country: MarketCountry
   description: string
   videoFile: File
   flawsVideoFile: File
@@ -73,6 +76,7 @@ function getVisitorId(): string {
 }
 
 export function ListingsProvider({ children }: { children: ReactNode }) {
+  const { browseCountry } = useLocale()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -89,6 +93,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     const { data, error: queryError } = await supabase
       .from('listings')
       .select('*')
+      .eq('country', browseCountry)
       .order('created_at', { ascending: false })
 
     if (queryError) {
@@ -105,7 +110,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       setListings(mapped)
     }
     setLoading(false)
-  }, [])
+  }, [browseCountry])
 
   useEffect(() => {
     void refreshListings()
@@ -262,6 +267,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           power: input.power,
           location: input.location,
           description,
+          country: input.country,
           video_poster: posterUrl || DEFAULT_POSTER,
           video_url: videoUrl,
           flaws_video_url: flawsVideoUrl,

@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useLocale } from '../i18n/LocaleContext'
 
 export function LoginPage() {
   const { login } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -34,28 +36,26 @@ export function LoginPage() {
         <div className="auth-panel auth-panel--solo">
           <form className="auth-panel__inner" onSubmit={handleSubmit}>
             <p className="auth-pitch__eyebrow" style={{ marginBottom: '0.75rem' }}>
-              Üdv újra
+              {t('auth.loginEyebrow')}
             </p>
-            <h1 className="auth-panel__title auth-panel__title--lg">Belépés a CarBuy-ra</h1>
-            <p className="auth-panel__sub">
-              Folytasd, ahol abbahagytad — hirdetéseid és Online státuszod egy kattintásra.
-            </p>
+            <h1 className="auth-panel__title auth-panel__title--lg">{t('auth.loginTitle')}</h1>
+            <p className="auth-panel__sub">{t('auth.loginSub')}</p>
 
             <div className="form-stack">
               <div className="form-field">
-                <label htmlFor="login-email">E-mail</label>
+                <label htmlFor="login-email">{t('auth.email')}</label>
                 <input
                   id="login-email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nev@email.hu"
+                  placeholder="name@email.com"
                   autoComplete="email"
                 />
               </div>
               <div className="form-field">
-                <label htmlFor="login-password">Jelszó</label>
+                <label htmlFor="login-password">{t('auth.password')}</label>
                 <input
                   id="login-password"
                   type="password"
@@ -68,12 +68,12 @@ export function LoginPage() {
               </div>
               {formError && <p className="form-error">{formError}</p>}
               <button type="submit" className="btn btn--accent btn--lg btn--block" disabled={submitting}>
-                {submitting ? 'Belépés…' : 'Belépés'}
+                {submitting ? t('auth.loggingIn') : t('auth.loginCta')}
               </button>
             </div>
 
             <p className="auth-panel__switch">
-              Még nincs fiókod? <Link to="/regisztracio">Regisztráció</Link>
+              {t('auth.noAccount')} <Link to="/regisztracio">{t('auth.registerLink')}</Link>
             </p>
           </form>
         </div>

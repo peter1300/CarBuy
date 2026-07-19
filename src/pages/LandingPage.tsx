@@ -5,6 +5,7 @@ import { SearchPanel } from '../components/SearchPanel'
 import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
 import { formatListingTitle, formatPrice } from '../data/listings'
+import { useLocale } from '../i18n/LocaleContext'
 import {
   hasPersonalization,
   loadReelPrefs,
@@ -17,6 +18,7 @@ const REELS_PREVIEW_LIMIT = 8
 export function LandingPage() {
   const { listings, loading, error } = useListings()
   const { favoriteIds } = useFavorites()
+  const { t, locale, browseCountry } = useLocale()
 
   const newestListings = useMemo(
     () =>
@@ -34,7 +36,6 @@ export function LandingPage() {
     const prefs = loadReelPrefs()
     if (!hasPersonalization(prefs)) return []
     return rankRecommendedListings(listings, prefs, HOME_LISTINGS_LIMIT)
-    // favoriteIds invalidates after save/remove
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listings, favoriteIds])
 
@@ -51,6 +52,8 @@ export function LandingPage() {
     ? newestListings.filter((l) => !recommendedListings.some((r) => r.id === l.id)).slice(0, 4)
     : newestListings
 
+  const priceOpts = { locale, country: browseCountry }
+
   return (
     <main className="page">
       <section className="hero">
@@ -58,11 +61,8 @@ export function LandingPage() {
         <div className="container">
           <div className="hero__content">
             <p className="hero__brand">CarBuy</p>
-            <h1 className="hero__headline">Találd meg gyorsabban. Vedd meg biztosabban.</h1>
-            <p className="hero__sub">
-              Videós hirdetések és élő bemutató, így percek alatt eldöntheted, hogy az autó valóban a
-              tiéd lesz-e
-            </p>
+            <h1 className="hero__headline">{t('landing.headline')}</h1>
+            <p className="hero__sub">{t('landing.sub')}</p>
           </div>
 
           <SearchPanel listingCount={listings.length} />
@@ -73,16 +73,14 @@ export function LandingPage() {
         <div className="reels-promo__atmosphere" aria-hidden="true" />
         <div className="container reels-promo__inner">
           <div className="reels-promo__copy">
-            <p className="reels-promo__eyebrow">Új</p>
-            <h2 id="reels-promo-title">Reels — autók végiggörgetve</h2>
-            <p>
-              Függőleges videófolyam: nézd meg az autókat mozgásban, egy kézmozdulattal a következőig.
-            </p>
+            <p className="reels-promo__eyebrow">{t('landing.reelsEyebrow')}</p>
+            <h2 id="reels-promo-title">{t('landing.reelsTitle')}</h2>
+            <p>{t('landing.reelsText')}</p>
             <Link to="/reels" className="btn btn--accent btn--lg reels-promo__cta">
               <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                 <path d="M4.2 2.8v8.4L11.2 7 4.2 2.8z" fill="currentColor" />
               </svg>
-              Reels indítása
+              {t('landing.reelsCta')}
             </Link>
           </div>
 
@@ -105,7 +103,7 @@ export function LandingPage() {
                     </span>
                     <span className="reels-promo__card-meta">
                       <strong>{formatListingTitle(listing)}</strong>
-                      <em>{formatPrice(listing.price)}</em>
+                      <em>{formatPrice(listing.price, priceOpts)}</em>
                     </span>
                   </Link>
                 ))}
@@ -126,13 +124,11 @@ export function LandingPage() {
           <div className="container">
             <div className="section__header">
               <div>
-                <h2 className="section__title">Neked ajánlott</h2>
-                <p className="section__sub">
-                  Kedvenceid és megnyitott hirdetéseid alapján — hasonló márkák és kategóriák.
-                </p>
+                <h2 className="section__title">{t('landing.recommendedTitle')}</h2>
+                <p className="section__sub">{t('landing.recommendedSub')}</p>
               </div>
               <Link to="/kedvencek" className="btn btn--outline">
-                Kedvencek
+                {t('nav.favorites')}
               </Link>
             </div>
             <div className="listings-grid">
@@ -148,23 +144,23 @@ export function LandingPage() {
         <div className="container">
           <div className="section__header">
             <div>
-              <h2 className="section__title">Friss videós hirdetések</h2>
-              <p className="section__sub">Mozgásban látod az autót — nem csak állóképeken.</p>
+              <h2 className="section__title">{t('landing.freshTitle')}</h2>
+              <p className="section__sub">{t('landing.freshSub')}</p>
             </div>
             <div className="section__header-actions">
               <Link to="/reels" className="btn btn--accent">
-                Reels
+                {t('nav.reels')}
               </Link>
               <Link to="/hirdetesek" className="btn btn--outline">
-                Összes hirdetés
+                {t('landing.allListings')}
               </Link>
             </div>
           </div>
 
-          {loading && <p className="state-message">Hirdetések betöltése…</p>}
+          {loading && <p className="state-message">{t('listings.loading')}</p>}
           {error && !loading && <p className="form-error">{error}</p>}
           {!loading && !error && freshWithoutRecommended.length === 0 && !showRecommended && (
-            <p className="state-message">Még nincsenek hirdetések. Légy te az első!</p>
+            <p className="state-message">{t('landing.noListings')}</p>
           )}
           {!loading && freshWithoutRecommended.length > 0 && (
             <div className="listings-grid">
@@ -179,11 +175,8 @@ export function LandingPage() {
       <section className="why">
         <div className="container why__inner">
           <div className="why__copy">
-            <h2>Kevesebb várakozás. Több bizonyosság.</h2>
-            <p>
-              A CarBuy nem fotógalériát ad — rövid videót és azonnali hang- vagy videóhívást az
-              eladóval, ha online van. Így a keresés és az eladás is felgyorsul.
-            </p>
+            <h2>{t('landing.whyTitle')}</h2>
+            <p>{t('landing.whyText')}</p>
           </div>
           <div className="why__points">
             <article className="why-point">
@@ -194,8 +187,8 @@ export function LandingPage() {
                 </svg>
               </div>
               <div>
-                <h3>Reels folyam</h3>
-                <p>Görgesd végig a kínálatot videóban — mint a közösségi feed, autókra szabva.</p>
+                <h3>{t('landing.whyReelsTitle')}</h3>
+                <p>{t('landing.whyReelsText')}</p>
               </div>
             </article>
             <article className="why-point">
@@ -206,8 +199,8 @@ export function LandingPage() {
                 </svg>
               </div>
               <div>
-                <h3>Percnyi döntés</h3>
-                <p>Szűrj, nézz videót, hívd fel az eladót — ha Online, azonnal.</p>
+                <h3>{t('landing.whySpeedTitle')}</h3>
+                <p>{t('landing.whySpeedText')}</p>
               </div>
             </article>
             <article className="why-point">
@@ -223,8 +216,8 @@ export function LandingPage() {
                 </svg>
               </div>
               <div>
-                <h3>Biztonságos élő hívás</h3>
-                <p>Hang- és videóhívás csak Online státuszban — kontrollált, platformon belül.</p>
+                <h3>{t('landing.whyCallTitle')}</h3>
+                <p>{t('landing.whyCallText')}</p>
               </div>
             </article>
           </div>
@@ -234,19 +227,16 @@ export function LandingPage() {
       <section className="cta-band" id="regisztracio">
         <div className="container cta-band__inner">
           <div className="cta-band__copy">
-            <p className="cta-band__eyebrow">Eladóknak</p>
-            <h2>Az autó eladása nem várakozás — bemutató.</h2>
-            <p>
-              Regisztrálj magánként vagy cégként. Az első videós hirdetésed ingyenes. Amikor Online
-              vagy, az érdeklődő egy kattintással hív.
-            </p>
+            <p className="cta-band__eyebrow">{t('landing.ctaEyebrow')}</p>
+            <h2>{t('landing.ctaTitle')}</h2>
+            <p>{t('landing.ctaText')}</p>
           </div>
           <div className="cta-band__actions">
             <Link to="/regisztracio" className="btn btn--accent btn--lg">
-              Fiók létrehozása
+              {t('landing.ctaRegister')}
             </Link>
             <Link to="/hirdetes-feladas" className="btn btn--outline btn--lg cta-band__ghost">
-              Hirdetésfeladás
+              {t('landing.ctaPost')}
             </Link>
           </div>
         </div>

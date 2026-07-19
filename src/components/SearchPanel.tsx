@@ -7,6 +7,7 @@ import {
   listingSearchToQuery,
   type ListingSearchFilters,
 } from '../lib/listingSearch'
+import { useLocale } from '../i18n/LocaleContext'
 
 const fuels = ['Üzemanyag', 'Benzin', 'Dízel', 'Hibrid', 'Elektromos']
 
@@ -22,6 +23,7 @@ export function SearchPanel({
   listingCount,
 }: Props) {
   const navigate = useNavigate()
+  const { t } = useLocale()
   const [make, setMake] = useState(initialFilters.make)
   const [model, setModel] = useState(initialFilters.model)
   const [priceMin, setPriceMin] = useState(initialFilters.priceMin)
@@ -95,13 +97,13 @@ export function SearchPanel({
       <div className="search-panel__rows">
         <div className="search-panel__row search-panel__row--primary">
           <div className="search-field">
-            <label htmlFor={`${idPrefix}make`}>Márka</label>
+            <label htmlFor={`${idPrefix}make`}>{t('search.make')}</label>
             <select
               id={`${idPrefix}make`}
               value={make}
               onChange={(e) => handleMakeChange(e.target.value)}
             >
-              <option value="">Márka</option>
+              <option value="">{t('search.make')}</option>
               {CAR_MAKES.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -111,14 +113,14 @@ export function SearchPanel({
           </div>
 
           <div className="search-field">
-            <label htmlFor={`${idPrefix}model`}>Modell</label>
+            <label htmlFor={`${idPrefix}model`}>{t('search.model')}</label>
             <select
               id={`${idPrefix}model`}
               value={model}
               onChange={(e) => setModel(e.target.value)}
               disabled={!make}
             >
-              <option value="">{make ? 'Modell' : 'Előbb válassz márkát'}</option>
+              <option value="">{make ? t('search.model') : t('search.any')}</option>
               {models.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -128,7 +130,7 @@ export function SearchPanel({
           </div>
 
           <div className="search-field search-field--range">
-            <span>Ár (Ft)</span>
+            <span>{t('search.priceMin')} / {t('search.priceMax')}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -163,13 +165,13 @@ export function SearchPanel({
           </div>
 
           <div className="search-field">
-            <label htmlFor={`${idPrefix}location`}>Helyszín</label>
+            <label htmlFor={`${idPrefix}location`}>{t('search.location')}</label>
             <select
               id={`${idPrefix}location`}
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             >
-              <option value="">Helyszín</option>
+              <option value="">{t('search.location')}</option>
               {HUNGARY_LOCATIONS.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -266,7 +268,7 @@ export function SearchPanel({
               strokeLinecap="round"
             />
           </svg>
-          Keresés
+          {t('search.submit')}
         </button>
       </div>
     </form>

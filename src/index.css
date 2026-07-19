@@ -203,6 +203,33 @@ ul {
   gap: 0.5rem;
 }
 
+.lang-switcher {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lang-switcher select {
+  height: 36px;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  max-width: 8.5rem;
+}
+
+.mobile-nav__lang {
+  padding: 0.35rem 0.75rem 0.75rem;
+}
+
+.mobile-nav__lang .lang-switcher select {
+  width: 100%;
+  max-width: none;
+  height: 40px;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

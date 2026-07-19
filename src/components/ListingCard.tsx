@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Listing } from '../data/listings'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
+import { useLocale } from '../i18n/LocaleContext'
 import { listingPath } from '../lib/listingUrl'
 import { FavoriteButton } from './FavoriteButton'
 import { StatusBadge } from './StatusBadge'
@@ -11,11 +12,12 @@ type Props = {
 
 export function ListingCard({ listing }: Props) {
   const displayTitle = formatListingTitle(listing)
+  const { locale, browseCountry } = useLocale()
 
   return (
     <Link to={listingPath(listing)} className="listing-card">
       <div className="listing-card__media">
-        <img src={listing.videoPoster} alt={`${displayTitle} videó előnézet`} loading="lazy" />
+        <img src={listing.videoPoster} alt={`${displayTitle}`} loading="lazy" />
         <FavoriteButton listing={listing} className="listing-card__fav" size="sm" />
         <div className="listing-card__play">
           <span className="play-btn" aria-hidden="true">
@@ -29,7 +31,9 @@ export function ListingCard({ listing }: Props) {
       <div className="listing-card__body">
         <div className="listing-card__top">
           <h3 className="listing-card__title">{displayTitle}</h3>
-          <p className="listing-card__price">{formatPrice(listing.price)}</p>
+          <p className="listing-card__price">
+            {formatPrice(listing.price, { locale, country: browseCountry })}
+          </p>
         </div>
         <div className="listing-card__meta">
           <span>{listing.year}</span>

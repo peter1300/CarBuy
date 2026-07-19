@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useLocale } from '../i18n/LocaleContext'
 
-/** Line-art car sketch for 404 / missing pages */
 function CarSketch() {
   return (
     <svg
@@ -52,21 +52,21 @@ function CarSketch() {
 }
 
 export function NotFoundPage() {
+  const { t } = useLocale()
+
   return (
     <main className="page not-found-page">
       <div className="container not-found">
-        <p className="not-found__code">404</p>
+        <p className="not-found__code">{t('notFound.code')}</p>
         <CarSketch />
-        <h1 className="not-found__title">Az oldal nem található</h1>
-        <p className="not-found__text">
-          Ez az útvonal nem létezik, vagy már elköltözött. Nézz körül a hirdetések között.
-        </p>
+        <h1 className="not-found__title">{t('notFound.title')}</h1>
+        <p className="not-found__text">{t('notFound.text')}</p>
         <div className="not-found__actions">
           <Link to="/" className="btn btn--primary">
-            Főoldal
+            {t('notFound.home')}
           </Link>
           <Link to="/hirdetesek" className="btn btn--ghost">
-            Hirdetések
+            {t('notFound.listings')}
           </Link>
         </div>
       </div>

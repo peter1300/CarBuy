@@ -5,6 +5,12 @@ import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
 import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
+import { useLocale } from '../i18n/LocaleContext'
+import {
+  COUNTRY_LABELS,
+  MARKET_COUNTRIES,
+  type MarketCountry,
+} from '../i18n/locales'
 import {
   isAllowedListingVideo,
   LISTING_VIDEO_ACCEPT,
@@ -25,11 +31,14 @@ const STEPS = [
 export function CreateListingPage() {
   const { user, loading: authLoading } = useAuth()
   const { addListing } = useListings()
+  const { browseCountry, t } = useLocale()
   const [step, setStep] = useState(1)
   const [publishedListing, setPublishedListing] = useState<Listing | null>(null)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [publishStatus, setPublishStatus] = useState('Közzététel…')
+
+  const [listingCountry, setListingCountry] = useState<MarketCountry>(browseCountry)
 
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
@@ -55,6 +64,10 @@ export function CreateListingPage() {
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100
   const modelsForMake = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
+
+  useEffect(() => {
+    setListingCountry(browseCountry)
+  }, [browseCountry])
 
   useEffect(() => {
     if (!videoFile) {
@@ -132,6 +145,7 @@ export function CreateListingPage() {
           transmission: transmission || '—',
           power: Number(power) || 0,
           location: location || '—',
+          country: listingCountry,
           description,
           videoFile,
           flawsVideoFile,
@@ -564,22 +578,50 @@ export function CreateListingPage() {
                     />
                   </div>
                   <div className="form-field">
-                    <label htmlFor="location">Helyszín</label>
+                    <label htmlFor="listing-country">{t('create.country')}</label>
                     <select
-                      id="location"
+                      id="listing-country"
                       required
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
+                      value={listingCountry}
+                      onChange={(e) => {
+                        setListingCountry(e.target.value as MarketCountry)
+                        setLocation('')
+                      }}
                     >
-                      <option value="" disabled>
-                        Válassz megyét
-                      </option>
-                      {HUNGARY_LOCATIONS.filter((l) => l !== 'Teljes Magyarország').map((l) => (
-                        <option key={l} value={l}>
-                          {l}
+                      {MARKET_COUNTRIES.map((code) => (
+                        <option key={code} value={code}>
+                          {COUNTRY_LABELS[code]}
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="location">{t('create.location')}</label>
+                    {listingCountry === 'HU' ? (
+                      <select
+                        id="location"
+                        required
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                      >
+                        <option value="" disabled>
+                          —
+                        </option>
+                        {HUNGARY_LOCATIONS.filter((l) => l !== 'Teljes Magyarország').map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="location"
+                        required
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder={t('create.locationHint')}
+                      />
+                    )}
                   </div>
                   <div className="form-field form-field--full">
                     <label htmlFor="description">Leírás</label>

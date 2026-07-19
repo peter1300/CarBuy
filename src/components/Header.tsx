@@ -1,13 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../context/FavoritesContext'
 import { useMessages } from '../context/MessagesContext'
+import { useLocale } from '../i18n/LocaleContext'
 
 export function Header() {
   const { user, logout } = useAuth()
   const { favoriteIds } = useFavorites()
   const { unreadCount } = useMessages()
+  const { t } = useLocale()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -63,7 +66,7 @@ export function Header() {
   return (
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}`}>
       <div className="site-header__inner">
-        <Link to="/" className="logo" aria-label="CarBuy főoldal">
+        <Link to="/" className="logo" aria-label="CarBuy">
           <span className="logo__mark" aria-hidden="true">
             <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -79,31 +82,28 @@ export function Header() {
           CarBuy
         </Link>
 
-        <nav className="nav-links" aria-label="Fő navigáció">
+        <nav className="nav-links" aria-label="Main">
           <Link to="/reels" className="nav-links__reels">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <rect x="1.5" y="1" width="8" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" />
               <path d="M11 4.5l1.5-1v7L11 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
               <path d="M4.2 4.8v4.4L7.8 7 4.2 4.8z" fill="currentColor" />
             </svg>
-            Reels
+            {t('nav.reels')}
           </Link>
-          <a href="/#kereses">Keresés</a>
-          <Link to="/hirdetesek">Hirdetések</Link>
-          <Link to="/hirdetes-feladas">Hirdetésfeladás</Link>
+          <a href="/#kereses">{t('nav.search')}</a>
+          <Link to="/hirdetesek">{t('nav.listings')}</Link>
+          <Link to="/hirdetes-feladas">{t('nav.postListing')}</Link>
         </nav>
 
         <div className="header-actions">
+          <LanguageSwitcher className="hide-mobile" />
           {user ? (
             <>
               <Link
                 to="/kedvencek"
                 className="header-mail header-fav"
-                aria-label={
-                  favoritesCount > 0
-                    ? `Kedvencek, ${favoritesCount} mentett autó`
-                    : 'Kedvencek'
-                }
+                aria-label={t('nav.favorites')}
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path
@@ -115,13 +115,7 @@ export function Header() {
                 </svg>
                 {favoritesBadge && <span className="header-mail__badge">{favoritesBadge}</span>}
               </Link>
-              <Link
-                to="/uzenetek"
-                className="header-mail"
-                aria-label={
-                  unreadCount > 0 ? `Üzenetek, ${unreadCount} olvasatlan` : 'Üzenetek'
-                }
-              >
+              <Link to="/uzenetek" className="header-mail" aria-label={t('nav.messages')}>
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <rect
                     x="2.5"
@@ -182,7 +176,7 @@ export function Header() {
                       className="account-dropdown__item"
                       onClick={closeAccount}
                     >
-                      Profil szerkesztése
+                      {t('nav.editProfile')}
                     </Link>
                     <Link
                       to="/profil/beallitasok"
@@ -190,7 +184,7 @@ export function Header() {
                       className="account-dropdown__item"
                       onClick={closeAccount}
                     >
-                      Beállítások
+                      {t('nav.settings')}
                     </Link>
                     <Link
                       to="/profil"
@@ -198,7 +192,7 @@ export function Header() {
                       className="account-dropdown__item"
                       onClick={closeAccount}
                     >
-                      Saját hirdetéseim
+                      {t('nav.myListings')}
                     </Link>
                     <div className="account-dropdown__divider" role="separator" />
                     <button
@@ -210,29 +204,28 @@ export function Header() {
                         void logout()
                       }}
                     >
-                      Kilépés
+                      {t('nav.logout')}
                     </button>
                   </div>
                 )}
               </div>
               <Link to="/hirdetes-feladas" className="btn btn--primary">
-                Új hirdetés
+                {t('nav.newListing')}
               </Link>
             </>
           ) : (
             <>
               <Link to="/belepes" className="btn btn--ghost hide-mobile">
-                Belépés
+                {t('nav.login')}
               </Link>
               <Link to="/regisztracio" className="btn btn--primary">
-                Regisztráció
+                {t('nav.register')}
               </Link>
             </>
           )}
           <button
             type="button"
             className="menu-toggle"
-            aria-label={menuOpen ? 'Menü bezárása' : 'Menü megnyitása'}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
@@ -259,38 +252,41 @@ export function Header() {
         </div>
       </div>
 
-      <nav className={`mobile-nav${menuOpen ? ' is-open' : ''}`} aria-label="Mobil navigáció">
+      <nav className={`mobile-nav${menuOpen ? ' is-open' : ''}`} aria-label="Mobile">
+        <div className="mobile-nav__lang">
+          <LanguageSwitcher />
+        </div>
         <Link to="/reels" className="mobile-nav__reels" onClick={closeMenu}>
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <rect x="1.5" y="1" width="8" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" />
             <path d="M11 4.5l1.5-1v7L11 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
             <path d="M4.2 4.8v4.4L7.8 7 4.2 4.8z" fill="currentColor" />
           </svg>
-          Reels
+          {t('nav.reels')}
         </Link>
         <a href="/#kereses" onClick={closeMenu}>
-          Keresés
+          {t('nav.search')}
         </a>
         <Link to="/hirdetesek" onClick={closeMenu}>
-          Hirdetések
+          {t('nav.listings')}
         </Link>
         <Link to="/hirdetes-feladas" onClick={closeMenu}>
-          Hirdetésfeladás
+          {t('nav.postListing')}
         </Link>
         {user ? (
           <>
             <p className="mobile-nav__label">{displayName}</p>
             <Link to="/profil/szerkesztes" onClick={closeMenu}>
-              Profil szerkesztése
+              {t('nav.editProfile')}
             </Link>
             <Link to="/profil/beallitasok" onClick={closeMenu}>
-              Beállítások
+              {t('nav.settings')}
             </Link>
             <Link to="/profil" onClick={closeMenu}>
-              Saját hirdetéseim
+              {t('nav.myListings')}
             </Link>
             <Link to="/kedvencek" onClick={closeMenu}>
-              Kedvencek
+              {t('nav.favorites')}
             </Link>
             <button
               type="button"
@@ -301,16 +297,16 @@ export function Header() {
                 closeMenu()
               }}
             >
-              Kilépés
+              {t('nav.logout')}
             </button>
           </>
         ) : (
           <>
             <Link to="/belepes" onClick={closeMenu}>
-              Belépés
+              {t('nav.login')}
             </Link>
             <Link to="/regisztracio" onClick={closeMenu}>
-              Regisztráció
+              {t('nav.register')}
             </Link>
           </>
         )}

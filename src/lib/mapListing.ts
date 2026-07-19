@@ -33,6 +33,7 @@ export function mapListingRow(row: ListingRow): Listing {
     power: row.power,
     location: row.location,
     description: row.description,
+    country: row.country,
     videoPoster: row.video_poster,
     videoDuration: row.video_duration,
     videoUrl: row.video_url ?? undefined,

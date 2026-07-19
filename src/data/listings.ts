@@ -13,6 +13,8 @@ export type Listing = {
   power: number
   location: string
   description: string
+  /** ISO market country for this listing */
+  country?: string
   videoPoster: string
   videoDuration: string
   /** Uploaded listing video (public URL); demos may omit */
@@ -35,10 +37,19 @@ export type Listing = {
   uniqueViews?: number
 }
 
-export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('hu-HU', {
+import type { AppLocale, MarketCountry } from '../i18n/locales'
+import { COUNTRY_CURRENCY, LOCALE_BCP47 } from '../i18n/locales'
+
+export function formatPrice(
+  price: number,
+  options?: { locale?: AppLocale; country?: MarketCountry },
+): string {
+  const locale = options?.locale ?? 'hu'
+  const country = options?.country ?? 'HU'
+  const currency = COUNTRY_CURRENCY[country]
+  return new Intl.NumberFormat(LOCALE_BCP47[locale], {
     style: 'currency',
-    currency: 'HUF',
+    currency,
     maximumFractionDigits: 0,
   }).format(price)
 }

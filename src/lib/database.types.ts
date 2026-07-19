@@ -23,6 +23,8 @@ export type Database = {
           updated_at: string
           avatar_url: string | null
           phone: string | null
+          ui_locale: string | null
+          browse_country: string | null
         }
         Insert: {
           id: string
@@ -37,6 +39,8 @@ export type Database = {
           updated_at?: string
           avatar_url?: string | null
           phone?: string | null
+          ui_locale?: string | null
+          browse_country?: string | null
         }
         Update: {
           id?: string
@@ -51,6 +55,8 @@ export type Database = {
           updated_at?: string
           avatar_url?: string | null
           phone?: string | null
+          ui_locale?: string | null
+          browse_country?: string | null
         }
         Relationships: []
       }
@@ -84,6 +90,7 @@ export type Database = {
           video_url: string | null
           flaws_video_url: string | null
           seller_avatar_url: string | null
+          country: string
         }
         Insert: {
           id: string
@@ -114,6 +121,7 @@ export type Database = {
           video_url?: string | null
           flaws_video_url?: string | null
           seller_avatar_url?: string | null
+          country?: string
         }
         Update: {
           id?: string
@@ -144,6 +152,7 @@ export type Database = {
           video_url?: string | null
           flaws_video_url?: string | null
           seller_avatar_url?: string | null
+          country?: string
         }
         Relationships: []
       }

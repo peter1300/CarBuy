@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import type { Listing } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
@@ -37,6 +38,7 @@ function flushWatch(session: SessionWatch, listing: Listing | undefined) {
 export function ReelsPage() {
   const { listings, loading, error } = useListings()
   const { favoriteIds } = useFavorites()
+  const { t, locale, browseCountry } = useLocale()
   const [statsReady, setStatsReady] = useState(false)
   const [statsVersion, setStatsVersion] = useState(0)
   const [statsMap, setStatsMap] = useState(() => new Map<string, ReelStats>())
@@ -179,7 +181,7 @@ export function ReelsPage() {
   if (loading || !statsReady) {
     return (
       <main className="page reels-page">
-        <p className="reels-page__state">Reels betöltése…</p>
+        <p className="reels-page__state">{t('reels.loading')}</p>
       </main>
     )
   }
@@ -196,10 +198,10 @@ export function ReelsPage() {
     return (
       <main className="page reels-page">
         <div className="reels-page__empty">
-          <h1>Reels</h1>
-          <p>Még nincs videós hirdetés. Tölts fel egyet, és megjelenik itt.</p>
-          <Link to="/hirdetes-feladas" className="btn btn--accent btn--lg">
-            Hirdetésfeladás
+          <h1>{t('reels.emptyTitle')}</h1>
+          <p>{t('reels.emptyText')}</p>
+          <Link to="/hirdetesek" className="btn btn--accent btn--lg">
+            {t('reels.browse')}
           </Link>
         </div>
       </main>
@@ -260,7 +262,9 @@ export function ReelsPage() {
                     {listing.year} · {formatMileage(listing.mileage)} · {listing.location}
                   </p>
                   <h2 className="reel-slide__title">{title}</h2>
-                  <p className="reel-slide__price">{formatPrice(listing.price)}</p>
+                  <p className="reel-slide__price">
+                    {formatPrice(listing.price, { locale, country: browseCountry })}
+                  </p>
                   <div className="reel-slide__seller">
                     <span>{listing.seller.name}</span>
                     <StatusBadge status={listing.seller.status} />
@@ -270,7 +274,7 @@ export function ReelsPage() {
                 <div className="reel-slide__actions">
                   <FavoriteButton listing={listing} className="reel-slide__fav" />
                   <Link to={listingPath(listing)} className="btn btn--accent btn--lg">
-                    Hirdetés
+                    {t('reels.listing')}
                   </Link>
                   <button
                     type="button"
@@ -283,7 +287,9 @@ export function ReelsPage() {
                       if (!video.muted) void video.play().catch(() => undefined)
                     }}
                   >
-                    {userInteracted && !videoRefs.current[index]?.muted ? 'Némítás' : 'Hang'}
+                    {userInteracted && !videoRefs.current[index]?.muted
+                      ? t('reels.mute')
+                      : t('reels.unmute')}
                   </button>
                 </div>
               </div>
