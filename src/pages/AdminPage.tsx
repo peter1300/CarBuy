@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { formatListingTitle } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { ListingRow, ProfileRow } from '../lib/database.types'
+import { NotFoundPage } from './NotFoundPage'
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
 const DAILY_DAYS = 30
@@ -111,6 +112,7 @@ export function AdminPage() {
   const [recentDeletions, setRecentDeletions] = useState<RecentDeletion[]>([])
   const [users, setUsers] = useState<ProfileRow[]>([])
   const [listings, setListings] = useState<ListingRow[]>([])
+  const [userEmailQuery, setUserEmailQuery] = useState('')
 
   const [editingUser, setEditingUser] = useState<ProfileRow | null>(null)
   const [userForm, setUserForm] = useState<UserEditForm | null>(null)
@@ -326,22 +328,14 @@ export function AdminPage() {
     )
   }
 
-  if (!user) {
-    return <Navigate to="/belepes" replace />
+  if (!isAdmin) {
+    return <NotFoundPage />
   }
 
-  if (!isAdmin) {
-    return (
-      <main className="page admin-page">
-        <div className="container">
-          <div className="admin-header">
-            <h1>Hozzáférés megtagadva</h1>
-            <p>Nincs jogosultságod az admin felület megtekintéséhez.</p>
-          </div>
-        </div>
-      </main>
-    )
-  }
+  const emailQuery = userEmailQuery.trim().toLowerCase()
+  const filteredUsers = emailQuery
+    ? users.filter((u) => u.email.toLowerCase().includes(emailQuery))
+    : users
 
   const maxDaily = Math.max(
     1,
@@ -562,7 +556,19 @@ export function AdminPage() {
 
             {tab === 'users' && (
               <div className="admin-section">
-                <h2>Regisztrált felhasználók</h2>
+                <div className="admin-section__head">
+                  <h2>Regisztrált felhasználók</h2>
+                  <label className="admin-search">
+                    <span className="sr-only">Keresés e-mailre</span>
+                    <input
+                      type="search"
+                      placeholder="Keresés e-mailre…"
+                      value={userEmailQuery}
+                      onChange={(e) => setUserEmailQuery(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
                 <div className="admin-table-wrap">
                   <table className="admin-table">
                     <thead>
@@ -576,24 +582,34 @@ export function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((u) => (
-                        <tr key={u.id}>
-                          <td>{u.name}</td>
-                          <td>{u.email}</td>
-                          <td>{u.account_type === 'business' ? 'Céges' : 'Magán'}</td>
-                          <td>{u.phone || '—'}</td>
-                          <td>{formatDate(u.created_at)}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn btn--ghost btn--sm"
-                              onClick={() => openUserEdit(u)}
-                            >
-                              Szerkesztés
-                            </button>
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="admin-table__empty">
+                            {emailQuery
+                              ? `Nincs találat erre: ${userEmailQuery.trim()}`
+                              : 'Nincs felhasználó.'}
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        filteredUsers.map((u) => (
+                          <tr key={u.id}>
+                            <td>{u.name}</td>
+                            <td>{u.email}</td>
+                            <td>{u.account_type === 'business' ? 'Céges' : 'Magán'}</td>
+                            <td>{u.phone || '—'}</td>
+                            <td>{formatDate(u.created_at)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                onClick={() => openUserEdit(u)}
+                              >
+                                Szerkesztés
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

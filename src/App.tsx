@@ -19,6 +19,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { MessagesInboxPage, MessagesChatPage } from './pages/MessagesPage'
 import { ReelsPage } from './pages/ReelsPage'
 import { AdminPage } from './pages/AdminPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
                   <Route path="/uzenetek" element={<MessagesInboxPage />} />
                   <Route path="/uzenetek/:conversationId" element={<MessagesChatPage />} />
                   <Route path="/admin" element={<AdminPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
                 <Footer />
                 <CallOverlay />
