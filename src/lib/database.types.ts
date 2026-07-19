@@ -252,6 +252,42 @@ export type Database = {
         }
         Relationships: []
       }
+      listing_deletions: {
+        Row: {
+          id: string
+          listing_id: string
+          owner_id: string | null
+          reason: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold'
+          listing_title: string | null
+          listing_make: string | null
+          listing_model: string | null
+          listing_price: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          listing_id: string
+          owner_id?: string | null
+          reason: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold'
+          listing_title?: string | null
+          listing_make?: string | null
+          listing_model?: string | null
+          listing_price?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          listing_id?: string
+          owner_id?: string | null
+          reason?: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold'
+          listing_title?: string | null
+          listing_make?: string | null
+          listing_model?: string | null
+          listing_price?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -267,6 +303,16 @@ export type Database = {
           p_completed?: boolean
         }
         Returns: undefined
+      }
+      get_deletion_stats: {
+        Args: Record<string, never>
+        Returns: {
+          total_deletions: number
+          sold_carbuy: number
+          sold_elsewhere: number
+          not_sold: number
+          carbuy_conversion_rate: number
+        }[]
       }
     }
     Enums: Record<string, never>

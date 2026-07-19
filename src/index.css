@@ -3926,7 +3926,7 @@ a.btn {
   width: 100%;
   max-width: 420px;
   padding: 2rem;
-  background: var(--surface);
+  background: var(--bg-elevated);
   border-radius: 18px;
   box-shadow: var(--shadow-lg);
   text-align: center;
@@ -3953,7 +3953,7 @@ a.btn {
 }
 
 .dialog__text {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.5;
   margin-bottom: 1rem;
@@ -3987,14 +3987,14 @@ a.btn {
   padding: 0.65rem;
   background: transparent;
   border: none;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   cursor: pointer;
   transition: color 0.15s;
 }
 
 .dialog__cancel:hover {
-  color: var(--foreground);
+  color: var(--text);
 }
 
 /* Admin Page */
@@ -4020,7 +4020,7 @@ a.btn {
 }
 
 .admin-header p {
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 .admin-stats {
@@ -4031,7 +4031,7 @@ a.btn {
 }
 
 .admin-stat-card {
-  background: var(--surface);
+  background: var(--bg-elevated);
   border-radius: 14px;
   padding: 1.5rem;
   text-align: center;
@@ -4062,12 +4062,12 @@ a.btn {
 
 .admin-stat-card__label {
   display: block;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
 .admin-section {
-  background: var(--surface);
+  background: var(--bg-elevated);
   border-radius: 14px;
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
@@ -4104,7 +4104,7 @@ a.btn {
 }
 
 .admin-chart__fill--carbuy {
-  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  background: linear-gradient(180deg, var(--accent), var(--accent-hover));
 }
 
 .admin-chart__fill--elsewhere {
@@ -4117,7 +4117,7 @@ a.btn {
 
 .admin-chart__label {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--text-secondary);
   text-align: center;
 }
 
@@ -4142,7 +4142,7 @@ a.btn {
 
 .admin-table th {
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
