@@ -75,9 +75,16 @@ export function Header() {
         </Link>
 
         <nav className="nav-links" aria-label="Fő navigáció">
+          <Link to="/reels" className="nav-links__reels">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="1.5" y="1" width="8" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M11 4.5l1.5-1v7L11 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+              <path d="M4.2 4.8v4.4L7.8 7 4.2 4.8z" fill="currentColor" />
+            </svg>
+            Reels
+          </Link>
           <a href="/#kereses">Keresés</a>
           <Link to="/hirdetesek">Hirdetések</Link>
-          <Link to="/reels">Reels</Link>
           <Link to="/hirdetes-feladas">Hirdetésfeladás</Link>
         </nav>
 
@@ -229,14 +236,19 @@ export function Header() {
       </div>
 
       <nav className={`mobile-nav${menuOpen ? ' is-open' : ''}`} aria-label="Mobil navigáció">
+        <Link to="/reels" className="mobile-nav__reels" onClick={closeMenu}>
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <rect x="1.5" y="1" width="8" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M11 4.5l1.5-1v7L11 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            <path d="M4.2 4.8v4.4L7.8 7 4.2 4.8z" fill="currentColor" />
+          </svg>
+          Reels
+        </Link>
         <a href="/#kereses" onClick={closeMenu}>
           Keresés
         </a>
         <Link to="/hirdetesek" onClick={closeMenu}>
           Hirdetések
-        </Link>
-        <Link to="/reels" onClick={closeMenu}>
-          Reels
         </Link>
         <Link to="/hirdetes-feladas" onClick={closeMenu}>
           Hirdetésfeladás

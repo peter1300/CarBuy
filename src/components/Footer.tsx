@@ -9,6 +9,7 @@ export function Footer() {
           <p className="site-footer__copy">Videós autóhirdetések. Gyorsabb döntés.</p>
         </div>
         <nav className="site-footer__links" aria-label="Lábléc">
+          <Link to="/reels">Reels</Link>
           <a href="/#kereses">Keresés</a>
           <Link to="/profil">Profilom</Link>
           <Link to="/hirdetes-feladas">Hirdetésfeladás</Link>
