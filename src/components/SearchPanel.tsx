@@ -9,8 +9,6 @@ import {
 } from '../lib/listingSearch'
 import { useLocale } from '../i18n/LocaleContext'
 
-const fuels = ['Üzemanyag', 'Benzin', 'Dízel', 'Hibrid', 'Elektromos']
-
 type Props = {
   variant?: 'hero' | 'sidebar'
   initialFilters?: ListingSearchFilters
@@ -23,7 +21,8 @@ export function SearchPanel({
   listingCount,
 }: Props) {
   const navigate = useNavigate()
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
+  const fuelAny = t('search.fuelAny')
   const [make, setMake] = useState(initialFilters.make)
   const [model, setModel] = useState(initialFilters.model)
   const [priceMin, setPriceMin] = useState(initialFilters.priceMin)
@@ -34,8 +33,19 @@ export function SearchPanel({
   const [powerMax, setPowerMax] = useState(initialFilters.powerMax)
   const [mileageMin, setMileageMin] = useState(initialFilters.mileageMin)
   const [mileageMax, setMileageMax] = useState(initialFilters.mileageMax)
-  const [fuel, setFuel] = useState(initialFilters.fuel || 'Üzemanyag')
+  const [fuel, setFuel] = useState(initialFilters.fuel || fuelAny)
   const [location, setLocation] = useState(initialFilters.location)
+
+  const fuels = useMemo(
+    () => [
+      fuelAny,
+      t('create.fuelPetrol'),
+      t('create.fuelDiesel'),
+      t('create.fuelHybrid'),
+      t('create.fuelElectric'),
+    ],
+    [t, fuelAny],
+  )
 
   useEffect(() => {
     setMake(initialFilters.make)
@@ -48,9 +58,9 @@ export function SearchPanel({
     setPowerMax(initialFilters.powerMax)
     setMileageMin(initialFilters.mileageMin)
     setMileageMax(initialFilters.mileageMax)
-    setFuel(initialFilters.fuel || 'Üzemanyag')
+    setFuel(initialFilters.fuel || fuelAny)
     setLocation(initialFilters.location)
-  }, [initialFilters])
+  }, [initialFilters, fuelAny])
 
   const models = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
 
@@ -73,7 +83,7 @@ export function SearchPanel({
       powerMax,
       mileageMin,
       mileageMax,
-      fuel: fuel === 'Üzemanyag' ? '' : fuel,
+      fuel: fuel === fuelAny ? '' : fuel,
       location,
     }
     navigate(`/hirdetesek${listingSearchToQuery(filters)}`)
@@ -82,7 +92,7 @@ export function SearchPanel({
   const idPrefix = variant === 'sidebar' ? 'side-' : ''
   const metaCount =
     typeof listingCount === 'number'
-      ? listingCount.toLocaleString('hu-HU')
+      ? listingCount.toLocaleString(locale)
       : '2 847'
 
   return (
@@ -90,9 +100,9 @@ export function SearchPanel({
       className={`search-panel search-panel--${variant}`}
       id={variant === 'hero' ? 'kereses' : undefined}
       onSubmit={handleSubmit}
-      aria-label="Autókereső"
+      aria-label={t('search.title')}
     >
-      {variant === 'sidebar' && <h2 className="search-panel__heading">Szűrés</h2>}
+      {variant === 'sidebar' && <h2 className="search-panel__heading">{t('search.filter')}</h2>}
 
       <div className="search-panel__rows">
         <div className="search-panel__row search-panel__row--primary">
@@ -134,30 +144,30 @@ export function SearchPanel({
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Tól"
-              aria-label="Minimum ár"
+              placeholder={t('search.from')}
+              aria-label={t('search.priceMin')}
               value={priceMin}
               onChange={(e) => setPriceMin(e.target.value)}
             />
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Ig"
-              aria-label="Maximum ár"
+              placeholder={t('search.to')}
+              aria-label={t('search.priceMax')}
               value={priceMax}
               onChange={(e) => setPriceMax(e.target.value)}
             />
           </div>
 
           <div className="search-field">
-            <label htmlFor={`${idPrefix}fuel`}>Üzemanyag</label>
+            <label htmlFor={`${idPrefix}fuel`}>{t('search.fuel')}</label>
             <select
               id={`${idPrefix}fuel`}
               value={fuel}
               onChange={(e) => setFuel(e.target.value)}
             >
               {fuels.map((f) => (
-                <option key={f} value={f} disabled={f === 'Üzemanyag'}>
+                <option key={f} value={f} disabled={f === fuelAny}>
                   {f}
                 </option>
               ))}
@@ -183,12 +193,12 @@ export function SearchPanel({
 
         <div className="search-panel__row search-panel__row--ranges">
           <div className="search-field search-field--range">
-            <span>Évjárat</span>
+            <span>{t('search.year')}</span>
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Tól"
-              aria-label="Évjárat tól"
+              placeholder={t('search.from')}
+              aria-label={t('search.yearMin')}
               min={1990}
               max={2026}
               value={yearFrom}
@@ -197,8 +207,8 @@ export function SearchPanel({
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Ig"
-              aria-label="Évjárat ig"
+              placeholder={t('search.to')}
+              aria-label={t('search.yearMax')}
               min={1990}
               max={2026}
               value={yearTo}
@@ -207,12 +217,12 @@ export function SearchPanel({
           </div>
 
           <div className="search-field search-field--range">
-            <span>Teljesítmény (LE)</span>
+            <span>{t('search.power')}</span>
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Tól"
-              aria-label="Teljesítmény tól"
+              placeholder={t('search.from')}
+              aria-label={t('search.power')}
               min={0}
               value={powerMin}
               onChange={(e) => setPowerMin(e.target.value)}
@@ -220,8 +230,8 @@ export function SearchPanel({
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Ig"
-              aria-label="Teljesítmény ig"
+              placeholder={t('search.to')}
+              aria-label={t('search.power')}
               min={0}
               value={powerMax}
               onChange={(e) => setPowerMax(e.target.value)}
@@ -229,12 +239,12 @@ export function SearchPanel({
           </div>
 
           <div className="search-field search-field--range">
-            <span>Kilométer</span>
+            <span>{t('search.mileage')}</span>
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Tól"
-              aria-label="Kilométer tól"
+              placeholder={t('search.from')}
+              aria-label={t('search.mileage')}
               min={0}
               value={mileageMin}
               onChange={(e) => setMileageMin(e.target.value)}
@@ -242,8 +252,8 @@ export function SearchPanel({
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Ig"
-              aria-label="Kilométer ig"
+              placeholder={t('search.to')}
+              aria-label={t('search.mileage')}
               min={0}
               value={mileageMax}
               onChange={(e) => setMileageMax(e.target.value)}
@@ -255,7 +265,7 @@ export function SearchPanel({
       <div className="search-panel__actions">
         {variant === 'hero' && (
           <p className="search-panel__meta">
-            <strong>{metaCount}</strong> videós hirdetés · frissítve ma
+            {t('search.meta', { count: metaCount })}
           </p>
         )}
         <button type="submit" className="btn btn--accent btn--lg search-panel__submit">

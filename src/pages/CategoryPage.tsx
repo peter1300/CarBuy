@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ListingCard } from '../components/ListingCard'
 import { useListings } from '../context/ListingsContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { slugifySegment } from '../lib/listingUrl'
 
 function byNewest(a: { createdAt?: string }, b: { createdAt?: string }) {
@@ -14,6 +15,7 @@ function byNewest(a: { createdAt?: string }, b: { createdAt?: string }) {
 export function CategoryPage() {
   const { make, model } = useParams<{ make?: string; model?: string }>()
   const { listings, loading, error } = useListings()
+  const { t } = useLocale()
 
   const filtered = useMemo(
     () =>
@@ -33,17 +35,17 @@ export function CategoryPage() {
       : `${make} / ${model}`
     : make
       ? filtered[0]?.make ?? make
-      : 'Személyautó'
+      : t('category.cars')
 
   return (
     <main className="page category-page">
       <div className="container">
-        <nav className="product-breadcrumb" aria-label="Morzsamenü">
-          <Link to="/">Főoldal</Link>
+        <nav className="product-breadcrumb" aria-label={t('product.breadcrumb')}>
+          <Link to="/">{t('category.home')}</Link>
           <span aria-hidden="true">/</span>
           {make ? (
             <>
-              <Link to="/szemelyauto">Személyautó</Link>
+              <Link to="/szemelyauto">{t('category.cars')}</Link>
               <span aria-hidden="true">/</span>
               {model ? (
                 <>
@@ -56,7 +58,7 @@ export function CategoryPage() {
               )}
             </>
           ) : (
-            <span>Személyautó</span>
+            <span>{t('category.cars')}</span>
           )}
         </nav>
 
@@ -64,17 +66,17 @@ export function CategoryPage() {
           <h1>{title}</h1>
           <p>
             {loading
-              ? 'Betöltés…'
+              ? t('common.loading')
               : filtered.length === 0
-                ? 'Nincs megjeleníthető hirdetés ebben a kategóriában.'
-                : `${filtered.length} videós hirdetés`}
+                ? t('category.empty')
+                : t('category.count', { count: filtered.length })}
           </p>
         </header>
 
         {error && <p className="form-error">{error}</p>}
 
         {loading ? (
-          <p className="state-message">Hirdetések betöltése…</p>
+          <p className="state-message">{t('common.loading')}</p>
         ) : filtered.length > 0 ? (
           <div className="listings-grid">
             {filtered.map((listing) => (
@@ -83,10 +85,10 @@ export function CategoryPage() {
           </div>
         ) : (
           <div className="profile-empty">
-            <h3>Nincs találat</h3>
-            <p>Próbálj másik márkát, vagy nézd meg az összes személyautót.</p>
+            <h3>{t('category.empty')}</h3>
+            <p>{t('category.emptyHint')}</p>
             <Link to="/szemelyauto" className="btn btn--primary btn--lg">
-              Összes személyautó
+              {t('category.all')}
             </Link>
           </div>
         )}

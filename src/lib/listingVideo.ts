@@ -1,3 +1,5 @@
+import { tGlobal } from '../i18n/messages'
+
 export const MAX_LISTING_VIDEO_BYTES = 150 * 1024 * 1024
 
 /** Preferált MIME-ek; mobilok gyakran üres type-ot vagy 3GPP-t adnak. */
@@ -59,7 +61,7 @@ export async function captureVideoPoster(file: File): Promise<{ blob: Blob; dura
 
     await new Promise<void>((resolve, reject) => {
       video.onloadedmetadata = () => resolve()
-      video.onerror = () => reject(new Error('A videó nem olvasható. Próbálj másik fájlt.'))
+      video.onerror = () => reject(new Error(tGlobal('errors.videoUnreadable')))
     })
 
     const duration = video.duration
@@ -68,7 +70,7 @@ export async function captureVideoPoster(file: File): Promise<{ blob: Blob; dura
 
     await new Promise<void>((resolve, reject) => {
       video.onseeked = () => resolve()
-      video.onerror = () => reject(new Error('Nem sikerült előnézetet készíteni a videóból.'))
+      video.onerror = () => reject(new Error(tGlobal('errors.posterFrameFailed')))
       window.setTimeout(() => resolve(), 2500)
     })
 
@@ -78,12 +80,12 @@ export async function captureVideoPoster(file: File): Promise<{ blob: Blob; dura
     canvas.width = width
     canvas.height = height
     const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Előnézet készítése sikertelen.')
+    if (!ctx) throw new Error(tGlobal('errors.posterCreateFailed'))
     ctx.drawImage(video, 0, 0, width, height)
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error('Előnézet mentése sikertelen.'))),
+        (b) => (b ? resolve(b) : reject(new Error(tGlobal('errors.posterSaveFailed')))),
         'image/jpeg',
         0.85,
       )

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ListingCard } from '../components/ListingCard'
 import { SearchPanel } from '../components/SearchPanel'
 import { useListings } from '../context/ListingsContext'
+import { useLocale } from '../i18n/LocaleContext'
 import {
   filterListings,
   listingSearchFromParams,
@@ -14,6 +15,7 @@ export function ListingsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { listings, loading, error } = useListings()
+  const { t, locale } = useLocale()
 
   const filters = useMemo(() => listingSearchFromParams(searchParams), [searchParams])
   const [keyword, setKeyword] = useState(filters.q)
@@ -42,7 +44,7 @@ export function ListingsPage() {
       <div className="container listings-page__container">
         <form className="keyword-search" onSubmit={handleKeywordSubmit} role="search">
           <label className="sr-only" htmlFor="keyword-q">
-            Szabadszavas keresés
+            {t('listingsPage.searchPlaceholder')}
           </label>
           <div className="keyword-search__field">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -59,17 +61,17 @@ export function ListingsPage() {
               type="search"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Szabadszavas keresés — márka, modell, leírás…"
+              placeholder={t('listingsPage.searchPlaceholder')}
               autoComplete="off"
             />
           </div>
           <button type="submit" className="btn btn--accent">
-            Keresés
+            {t('search.submit')}
           </button>
         </form>
 
         <div className="listings-layout">
-          <aside className="listings-layout__sidebar" aria-label="Részletes szűrők">
+          <aside className="listings-layout__sidebar" aria-label={t('listingsPage.filters')}>
             <SearchPanel
               variant="sidebar"
               initialFilters={filters}
@@ -80,13 +82,15 @@ export function ListingsPage() {
           <section className="listings-layout__results" aria-live="polite">
             <header className="listings-results__header">
               <div>
-                <h1>Hirdetések</h1>
+                <h1>{t('listingsPage.title')}</h1>
                 <p>
                   {loading
-                    ? 'Betöltés…'
+                    ? t('common.loading')
                     : filtered.length === 0
-                      ? 'Nincs megjeleníthető hirdetés a megadott feltételekkel.'
-                      : `${filtered.length.toLocaleString('hu-HU')} videós hirdetés`}
+                      ? t('listingsPage.empty')
+                      : t('listingsPage.count', {
+                          count: filtered.length.toLocaleString(locale),
+                        })}
                 </p>
               </div>
             </header>
@@ -94,7 +98,7 @@ export function ListingsPage() {
             {error && <p className="form-error">{error}</p>}
 
             {loading ? (
-              <p className="state-message">Hirdetések betöltése…</p>
+              <p className="state-message">{t('common.loading')}</p>
             ) : filtered.length > 0 ? (
               <div className="listings-grid listings-grid--results">
                 {filtered.map((listing) => (
@@ -103,10 +107,10 @@ export function ListingsPage() {
               </div>
             ) : (
               <div className="profile-empty">
-                <h3>Nincs találat</h3>
-                <p>Próbálj tágabb szűrést, vagy töröld a szabadszavas keresést.</p>
+                <h3>{t('listingsPage.empty')}</h3>
+                <p>{t('listingsPage.emptyHint')}</p>
                 <Link to="/hirdetesek" className="btn btn--primary btn--lg">
-                  Összes hirdetés
+                  {t('listingsPage.all')}
                 </Link>
               </div>
             )}

@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../context/FavoritesContext'
+import { useLocale } from '../i18n/LocaleContext'
 import type { Listing } from '../data/listings'
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 export function FavoriteButton({ listing, className = '', size = 'md' }: Props) {
   const { user } = useAuth()
   const { isFavorite, toggleFavorite } = useFavorites()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const location = useLocation()
   const active = isFavorite(listing.id)
@@ -34,7 +36,7 @@ export function FavoriteButton({ listing, className = '', size = 'md' }: Props) 
     <button
       type="button"
       className={`favorite-btn favorite-btn--${size}${active ? ' is-active' : ''}${className ? ` ${className}` : ''}`}
-      aria-label={active ? 'Eltávolítás a kedvencekből' : 'Mentés a kedvencekbe'}
+      aria-label={active ? t('favorite.remove') : t('favorite.add')}
       aria-pressed={active}
       onClick={handleClick}
     >

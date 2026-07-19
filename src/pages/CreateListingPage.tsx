@@ -20,23 +20,27 @@ import { canUseInAppRecorder } from '../lib/videoRecorder'
 import { listingPath } from '../lib/listingUrl'
 import { formatListingTitle, type Listing } from '../data/listings'
 
-const STEPS = [
-  { id: 1, label: 'Videó', hint: 'A meggyőző első benyomás' },
-  { id: 2, label: 'Hibák', hint: 'Őszinteség, ami meggyőz' },
-  { id: 3, label: 'Adatok', hint: 'Pontos, átlátható részletek' },
-  { id: 4, label: 'Ár', hint: 'Érdeklődők azonnal látják' },
-  { id: 5, label: 'Közzététel', hint: 'Élő bemutatás készen' },
-] as const
-
 export function CreateListingPage() {
   const { user, loading: authLoading } = useAuth()
   const { addListing } = useListings()
-  const { browseCountry, t } = useLocale()
+  const { browseCountry, t, locale } = useLocale()
+
+  const STEPS = useMemo(
+    () => [
+      { id: 1, label: t('create.step1Label'), hint: t('create.step1Hint') },
+      { id: 2, label: t('create.step2Label'), hint: t('create.step2Hint') },
+      { id: 3, label: t('create.step3Label'), hint: t('create.step3Hint') },
+      { id: 4, label: t('create.step4Label'), hint: t('create.step4Hint') },
+      { id: 5, label: t('create.step5Label'), hint: t('create.step5Hint') },
+    ],
+    [t],
+  )
+
   const [step, setStep] = useState(1)
   const [publishedListing, setPublishedListing] = useState<Listing | null>(null)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
-  const [publishStatus, setPublishStatus] = useState('Közzététel…')
+  const [publishStatus, setPublishStatus] = useState(() => t('create.publishing'))
 
   const [listingCountry, setListingCountry] = useState<MarketCountry>(browseCountry)
 
@@ -99,7 +103,7 @@ export function CreateListingPage() {
     return (
       <main className="page create-page">
         <div className="container">
-          <p className="state-message">Betöltés…</p>
+          <p className="state-message">{t('common.loading')}</p>
         </div>
       </main>
     )
@@ -119,23 +123,23 @@ export function CreateListingPage() {
     e.preventDefault()
     if (publishing) return
     if (!videoFile) {
-      setPublishError('Tölts fel egy bemutatóvideót.')
+      setPublishError(t('create.videoRequired'))
       setStep(1)
       return
     }
     if (!flawsVideoFile) {
-      setPublishError('Tölts fel egy videót a hibákról is.')
+      setPublishError(t('create.errorNeedFlaws'))
       setStep(2)
       return
     }
     setPublishError(null)
     setPublishing(true)
-    setPublishStatus('Videók tömörítése…')
+    setPublishStatus(t('create.compressing'))
     try {
       const listing = await addListing(
         user,
         {
-          title: title || `${make} ${model}`.trim() || 'Új hirdetés',
+          title: title || `${make} ${model}`.trim() || t('create.title'),
           make: make || '—',
           model: model || '—',
           year: Number(year) || new Date().getFullYear(),
@@ -155,7 +159,7 @@ export function CreateListingPage() {
       )
       setPublishedListing(listing)
     } catch (err) {
-      setPublishError(err instanceof Error ? err.message : 'Közzététel sikertelen.')
+      setPublishError(err instanceof Error ? err.message : t('errors.generic'))
     } finally {
       setPublishing(false)
     }
@@ -168,12 +172,12 @@ export function CreateListingPage() {
       return
     }
     if (!isAllowedListingVideo(file)) {
-      setVideoError('Csak videófájl tölthető fel (MP4, MOV, WebM).')
+      setVideoError(t('create.videoTypeError'))
       setVideoFile(null)
       return
     }
     if (file.size > MAX_LISTING_VIDEO_BYTES) {
-      setVideoError('A videó maximum 150 MB lehet.')
+      setVideoError(t('create.videoSizeError'))
       setVideoFile(null)
       return
     }
@@ -187,12 +191,12 @@ export function CreateListingPage() {
       return
     }
     if (!isAllowedListingVideo(file)) {
-      setFlawsError('Csak videófájl tölthető fel (MP4, MOV, WebM).')
+      setFlawsError(t('create.videoTypeError'))
       setFlawsVideoFile(null)
       return
     }
     if (file.size > MAX_LISTING_VIDEO_BYTES) {
-      setFlawsError('A videó maximum 150 MB lehet.')
+      setFlawsError(t('create.videoSizeError'))
       setFlawsVideoFile(null)
       return
     }
@@ -218,18 +222,14 @@ export function CreateListingPage() {
                 />
               </svg>
             </div>
-            <h1>A hirdetésed él!</h1>
-            <p>
-              Elmentettük a profilod alá. {goOnline
-                ? 'Online státuszban vagy — az érdeklődők azonnal hívhatnak.'
-                : 'Amikor készen állsz, kapcsold Online-ra, hogy hívást fogadhass.'}
-            </p>
+            <h1>{t('create.successTitle')}</h1>
+            <p>{goOnline ? t('create.successOnline') : t('create.successOffline')}</p>
             <div className="publish-success__actions">
               <Link to="/profil" className="btn btn--accent btn--lg">
-                Saját hirdetéseim
+                {t('create.myListings')}
               </Link>
               <Link to={listingPath(publishedListing)} className="btn btn--outline btn--lg">
-                Hirdetés megnyitása
+                {t('create.openListing')}
               </Link>
             </div>
           </div>
@@ -244,17 +244,13 @@ export function CreateListingPage() {
       <div className="container">
         <header className="create-hero">
           <p className="create-hero__eyebrow">
-            {user.accountType === 'business' ? 'Kereskedői hirdetés' : 'Magán hirdetés'} ·{' '}
+            {user.accountType === 'business' ? t('create.heroBusiness') : t('create.heroPersonal')} ·{' '}
             {displayName}
           </p>
-          <h1 className="create-hero__title">Mutasd meg mozgásban.</h1>
-          <p className="create-hero__sub">
-            A fotó magyaráz. A videó meggyőz. Tölts fel egy rövid bemutatót — az első hirdetésed
-            ingyenes.
-          </p>
+          <h1 className="create-hero__title">{t('create.heroHeadline')}</h1>
         </header>
 
-        <div className="create-progress" role="navigation" aria-label="Hirdetés lépései">
+        <div className="create-progress" role="navigation" aria-label={t('create.preview')}>
           <div className="create-progress__bar" aria-hidden="true">
             <div className="create-progress__fill" style={{ width: `${progress}%` }} />
           </div>
@@ -287,10 +283,8 @@ export function CreateListingPage() {
           >
             {step === 1 && (
               <div className="create-step">
-                <h2>Videós bemutató</h2>
-                <p className="create-step__lead">
-                  60–180 másodperc elég. Beltér, karosszéria, indítás — ennyi kell a bizalomhoz.
-                </p>
+                <h2>{t('create.videoTitle')}</h2>
+                <p className="create-step__lead">{STEPS[0].hint}</p>
 
                 <input
                   ref={videoInputRef}
@@ -330,8 +324,7 @@ export function CreateListingPage() {
                           <path d="M17 16.5v7l7-3.5-7-3.5z" fill="currentColor" />
                         </svg>
                       </span>
-                      <strong>Még nincs bemutatóvideó</strong>
-                      <span>Válassz galériából, vagy vedd fel jobb minőségben a kamerával</span>
+                      <strong>{t('create.dropMain')}</strong>
                     </>
                   )}
                 </div>
@@ -342,7 +335,7 @@ export function CreateListingPage() {
                     className="btn btn--outline"
                     onClick={() => videoInputRef.current?.click()}
                   >
-                    Galériából
+                    {t('create.fromGallery')}
                   </button>
                   {recorderSupported && (
                     <button
@@ -350,7 +343,7 @@ export function CreateListingPage() {
                       className="btn btn--accent"
                       onClick={() => setRecorderTarget('main')}
                     >
-                      Kamerával felvétel
+                      {t('create.record')}
                     </button>
                   )}
                 </div>
@@ -358,16 +351,7 @@ export function CreateListingPage() {
 
                 <div className="tip-row">
                   <article className="mini-tip">
-                    <strong>Jobb minőség</strong>
-                    <span>A „Kamerával felvétel” 1080p-ben rögzít a böngészőben.</span>
-                  </article>
-                  <article className="mini-tip">
-                    <strong>Jó fény</strong>
-                    <span>Nappali fény vagy tiszta csarnokvilágítás.</span>
-                  </article>
-                  <article className="mini-tip">
-                    <strong>Hang is számít</strong>
-                    <span>Motorindítás: azonnali bizalomépítő.</span>
+                    <strong>{t('create.tipsTitle')}</strong>
                   </article>
                 </div>
               </div>
@@ -375,11 +359,8 @@ export function CreateListingPage() {
 
             {step === 2 && (
               <div className="create-step">
-                <h2>Hibák — őszintén</h2>
-                <p className="create-step__lead">
-                  Minden használtautón vannak hibák. Ha őszintén megmutatod őket, a vevő inkább
-                  bízik benned — és kevésbé jön meglepetésként bármi az átadáskor.
-                </p>
+                <h2>{t('create.flawsTitle')}</h2>
+                <p className="create-step__lead">{STEPS[1].hint}</p>
 
                 <input
                   ref={flawsInputRef}
@@ -419,8 +400,7 @@ export function CreateListingPage() {
                           <path d="M17 16.5v7l7-3.5-7-3.5z" fill="currentColor" />
                         </svg>
                       </span>
-                      <strong>Hibák videó feltöltése</strong>
-                      <span>Karcok, kopások · max. 150 MB</span>
+                      <strong>{t('create.dropFlaws')}</strong>
                     </>
                   )}
                 </div>
@@ -431,7 +411,7 @@ export function CreateListingPage() {
                     className="btn btn--outline"
                     onClick={() => flawsInputRef.current?.click()}
                   >
-                    Galériából
+                    {t('create.fromGallery')}
                   </button>
                   {recorderSupported && (
                     <button
@@ -439,45 +419,31 @@ export function CreateListingPage() {
                       className="btn btn--accent"
                       onClick={() => setRecorderTarget('flaws')}
                     >
-                      Kamerával felvétel
+                      {t('create.record')}
                     </button>
                   )}
                 </div>
                 {flawsError && <p className="form-error">{flawsError}</p>}
-
-                <div className="honesty-note">
-                  <strong>Miért érdemes?</strong>
-                  <p>
-                    A vevő látja, hogy nem takargatsz semmit. Ez gyakran erősebb bizalomépítő, mint
-                    egy tökéletesnek tűnő bemutató.
-                  </p>
-                </div>
               </div>
             )}
 
             {step === 3 && (
               <div className="create-step">
-                <h2>Autó adatai</h2>
-                <p className="create-step__lead">
-                  Minél pontosabb, annál kevesebb felesleges kérdés — több idő élő bemutatóra.
-                </p>
+                <h2>{t('create.title')}</h2>
+                <p className="create-step__lead">{STEPS[2].hint}</p>
 
                 <div className="form-grid">
                   <div className="form-field form-field--full">
-                    <label htmlFor="title">Hirdetés címe</label>
+                    <label htmlFor="title">{t('create.title')}</label>
                     <input
                       id="title"
                       required
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="pl. Hibátlan, teljes felszereltség"
                     />
-                    <p className="form-field__hint">
-                      A hirdetésen így jelenik meg: Márka + Modell + ez a szöveg.
-                    </p>
                   </div>
                   <div className="form-field">
-                    <label htmlFor="make">Márka</label>
+                    <label htmlFor="make">{t('create.make')}</label>
                     <select
                       id="make"
                       required
@@ -488,7 +454,7 @@ export function CreateListingPage() {
                       }}
                     >
                       <option value="" disabled>
-                        Válassz márkát
+                        —
                       </option>
                       {CAR_MAKES.map((m) => (
                         <option key={m} value={m}>
@@ -498,7 +464,7 @@ export function CreateListingPage() {
                     </select>
                   </div>
                   <div className="form-field">
-                    <label htmlFor="model">Modell</label>
+                    <label htmlFor="model">{t('create.model')}</label>
                     <select
                       id="model"
                       required
@@ -507,7 +473,7 @@ export function CreateListingPage() {
                       disabled={!make}
                     >
                       <option value="" disabled>
-                        {make ? 'Válassz modellt' : 'Előbb válassz márkát'}
+                        —
                       </option>
                       {modelsForMake.map((m) => (
                         <option key={m} value={m}>
@@ -517,7 +483,7 @@ export function CreateListingPage() {
                     </select>
                   </div>
                   <div className="form-field">
-                    <label htmlFor="year">Évjárat</label>
+                    <label htmlFor="year">{t('create.year')}</label>
                     <input
                       id="year"
                       type="number"
@@ -526,34 +492,32 @@ export function CreateListingPage() {
                       max={2026}
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
-                      placeholder="2021"
                     />
                   </div>
                   <div className="form-field">
-                    <label htmlFor="mileage">Kilométeróra</label>
+                    <label htmlFor="mileage">{t('create.mileage')}</label>
                     <input
                       id="mileage"
                       type="number"
                       required
                       value={mileage}
                       onChange={(e) => setMileage(e.target.value)}
-                      placeholder="68400"
                     />
                   </div>
                   <div className="form-field">
-                    <label htmlFor="fuel">Üzemanyag</label>
+                    <label htmlFor="fuel">{t('create.fuel')}</label>
                     <select id="fuel" required value={fuel} onChange={(e) => setFuel(e.target.value)}>
                       <option value="" disabled>
-                        Válassz
+                        —
                       </option>
-                      <option>Benzin</option>
-                      <option>Dízel</option>
-                      <option>Hibrid</option>
-                      <option>Elektromos</option>
+                      <option value={t('create.fuelPetrol')}>{t('create.fuelPetrol')}</option>
+                      <option value={t('create.fuelDiesel')}>{t('create.fuelDiesel')}</option>
+                      <option value={t('create.fuelHybrid')}>{t('create.fuelHybrid')}</option>
+                      <option value={t('create.fuelElectric')}>{t('create.fuelElectric')}</option>
                     </select>
                   </div>
                   <div className="form-field">
-                    <label htmlFor="transmission">Váltó</label>
+                    <label htmlFor="transmission">{t('create.transmission')}</label>
                     <select
                       id="transmission"
                       required
@@ -561,20 +525,19 @@ export function CreateListingPage() {
                       onChange={(e) => setTransmission(e.target.value)}
                     >
                       <option value="" disabled>
-                        Válassz
+                        —
                       </option>
-                      <option>Manuális</option>
-                      <option>Automata</option>
+                      <option value={t('create.transManual')}>{t('create.transManual')}</option>
+                      <option value={t('create.transAuto')}>{t('create.transAuto')}</option>
                     </select>
                   </div>
                   <div className="form-field">
-                    <label htmlFor="power">Teljesítmény (LE)</label>
+                    <label htmlFor="power">{t('create.power')}</label>
                     <input
                       id="power"
                       type="number"
                       value={power}
                       onChange={(e) => setPower(e.target.value)}
-                      placeholder="190"
                     />
                   </div>
                   <div className="form-field">
@@ -624,13 +587,12 @@ export function CreateListingPage() {
                     )}
                   </div>
                   <div className="form-field form-field--full">
-                    <label htmlFor="description">Leírás</label>
+                    <label htmlFor="description">{t('create.description')}</label>
                     <textarea
                       id="description"
                       rows={4}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Emeld ki, amit a videóban is megmutatsz — szerviz, extrák, állapot."
                     />
                   </div>
                 </div>
@@ -639,21 +601,18 @@ export function CreateListingPage() {
 
             {step === 4 && (
               <div className="create-step">
-                <h2>Ár és elérhetőség</h2>
-                <p className="create-step__lead">
-                  A jó ár + Online státusz = kevesebb alkudozás, gyorsabb kézfogás.
-                </p>
+                <h2>{t('create.price')}</h2>
+                <p className="create-step__lead">{STEPS[3].hint}</p>
 
                 <div className="form-grid">
                   <div className="form-field form-field--full">
-                    <label htmlFor="price">Eladási ár (Ft)</label>
+                    <label htmlFor="price">{t('create.price')}</label>
                     <input
                       id="price"
                       type="number"
                       required
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
-                      placeholder="12490000"
                       className="input-price"
                     />
                   </div>
@@ -669,31 +628,16 @@ export function CreateListingPage() {
                     <span className="status-toggle__knob" />
                   </span>
                   <span className="status-toggle__copy">
-                    <strong>Közzététel után legyek Online</strong>
-                    <span>
-                      Így az érdeklődők azonnal indíthatnak hang- vagy videóhívást. Bármikor
-                      Elfoglaltra vagy Offline-ra váltasz.
-                    </span>
+                    <strong>{t('create.goOnline')}</strong>
                   </span>
                 </label>
-
-                <div className="free-banner">
-                  <strong>1 hirdetés · ingyen</strong>
-                  <p>
-                    {user.accountType === 'business'
-                      ? 'Céges fiókod első hirdetése ingyenes. Később előfizetéssel több slot egy csomagban.'
-                      : 'Magánszemélyként az első hirdetés mindig ingyenes. További autókra külön hirdetés vásárolható.'}
-                  </p>
-                </div>
               </div>
             )}
 
             {step === 5 && (
               <div className="create-step">
-                <h2>Áttekintés</h2>
-                <p className="create-step__lead">
-                  Ellenőrizd — majd egy kattintással élő a hirdetésed.
-                </p>
+                <h2>{t('create.preview')}</h2>
+                <p className="create-step__lead">{STEPS[4].hint}</p>
 
                 <div className="preview-card">
                   <div className="preview-card__media">
@@ -702,33 +646,28 @@ export function CreateListingPage() {
                         <path d="M7 4.5v11L16 10 7 4.5z" fill="currentColor" />
                       </svg>
                     </div>
-                    <span>{videoFile?.name || 'Nincs videó'}</span>
+                    <span>{videoFile?.name || t('create.dropMain')}</span>
                   </div>
                   <div className="preview-card__body">
                     <h3>
                       {formatListingTitle({
                         make: make || '—',
                         model: model || '—',
-                        title: title || 'Cím nélkül',
+                        title: title || t('create.title'),
                       })}
                     </h3>
                     <p className="preview-card__price">
                       {price
-                        ? `${Number(price).toLocaleString('hu-HU')} Ft`
-                        : 'Ár megadása folyamatban'}
+                        ? `${Number(price).toLocaleString(locale)}`
+                        : t('create.price')}
                     </p>
                     <p className="preview-card__meta">
-                      {[year, mileage && `${Number(mileage).toLocaleString('hu-HU')} km`, fuel, transmission, location]
+                      {[year, mileage && `${Number(mileage).toLocaleString(locale)} km`, fuel, transmission, location]
                         .filter(Boolean)
-                        .join(' · ') || 'Adatok kitöltése folyamatban'}
+                        .join(' · ')}
                     </p>
                     <p className="preview-card__status">
-                      Hibák videó:{' '}
-                      <strong>{flawsVideoFile ? flawsVideoFile.name : 'Hiányzik'}</strong>
-                    </p>
-                    <p className="preview-card__status">
-                      Státusz közzétételkor:{' '}
-                      <strong>{goOnline ? 'Online' : 'Offline'}</strong>
+                      <strong>{goOnline ? t('status.online') : t('status.offline')}</strong>
                     </p>
                   </div>
                 </div>
@@ -738,7 +677,7 @@ export function CreateListingPage() {
             <div className="create-actions">
               {step > 1 ? (
                 <button type="button" className="btn btn--ghost btn--lg" onClick={handleBack} disabled={publishing}>
-                  Vissza
+                  {t('create.back')}
                 </button>
               ) : (
                 <span />
@@ -757,8 +696,8 @@ export function CreateListingPage() {
                   {publishing
                     ? publishStatus
                     : step === STEPS.length
-                      ? 'Hirdetés közzététele'
-                      : 'Tovább'}
+                      ? t('create.publish')
+                      : t('create.next')}
                 </button>
               </div>
             </div>
@@ -767,39 +706,8 @@ export function CreateListingPage() {
           <aside className="create-aside">
             <div className="persuade-card">
               <p className="persuade-card__kicker">{STEPS[step - 1].hint}</p>
-              <h3>
-                {step === 1 && 'A videó elad helyetted.'}
-                {step === 2 && 'Az őszinteség meggyőz.'}
-                {step === 3 && 'A részletek szűrik a komoly vevőket.'}
-                {step === 4 && 'Az ár + Online státusz = sebesség.'}
-                {step === 5 && 'Készen állsz a bemutatásra.'}
-              </h3>
-              <p>
-                {step === 1 &&
-                  'A vevők 3× szívesebben érdeklődnek, ha mozgásban látják az autót — kevesebb „még van-e?” üzenet, több élő hívás.'}
-                {step === 2 &&
-                  'Minden használtautón vannak hibák. Ha megmutatod őket, a vevő látja: nem takargatsz semmit — és könnyebben dönt.'}
-                {step === 3 &&
-                  'Pontos adatok = kevesebb félreértés. A videóhívás ideje a bemutatásra megy, nem az alapkérdésekre.'}
-                {step === 4 &&
-                  'Hívni csak Online státuszban lehet. Kapcsold be, ha ott vagy az autónál — és kapcsold ki, ha nem.'}
-                {step === 5 &&
-                  'Közzététel után a hirdetésed megjelenik a keresőben. Online állapotban azonnal fogadhatsz hang- és videóhívást.'}
-              </p>
-              <ul className="persuade-card__stats">
-                <li>
-                  <strong>percnyi</strong>
-                  <span>döntési idő</span>
-                </li>
-                <li>
-                  <strong>1.</strong>
-                  <span>hirdetés ingyen</span>
-                </li>
-                <li>
-                  <strong>élő</strong>
-                  <span>bemutató</span>
-                </li>
-              </ul>
+              <h3>{t(`create.aside${step}Title`)}</h3>
+              <p>{t(`create.aside${step}Text`)}</p>
             </div>
           </aside>
         </div>
@@ -807,7 +715,7 @@ export function CreateListingPage() {
 
       <ListingVideoRecorder
         open={recorderTarget !== null}
-        title={recorderTarget === 'flaws' ? 'Hibák videó felvétele' : 'Bemutatóvideó felvétele'}
+        title={recorderTarget === 'flaws' ? t('create.flawsTitle') : t('create.videoTitle')}
         onClose={() => setRecorderTarget(null)}
         onRecorded={(file) => {
           if (recorderTarget === 'flaws') onPickFlawsVideo(file)

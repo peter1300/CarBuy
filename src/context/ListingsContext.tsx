@@ -20,6 +20,7 @@ import {
 import { compressVideoForUpload } from '../lib/compressVideo'
 import { mapListingRow } from '../lib/mapListing'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { tGlobal } from '../i18n/messages'
 
 export type UserListingInput = {
   title: string
@@ -83,7 +84,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
   const refreshListings = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      setError('Supabase nincs beállítva. Add meg a VITE_SUPABASE_* változókat.')
+      setError(tGlobal('errors.supabaseMissing'))
       setListings([])
       setLoading(false)
       return
@@ -123,7 +124,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       options?: { onStatus?: (status: string) => void },
     ) => {
       if (!isSupabaseConfigured) {
-        throw new Error('Supabase nincs beállítva.')
+        throw new Error(tGlobal('errors.supabaseMissing'))
       }
 
       const {
@@ -131,7 +132,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         error: authError,
       } = await supabase.auth.getUser()
       if (authError || !authUser) {
-        throw new Error('A munkamenet lejárt. Lépj be újra, majd próbáld meg ismét.')
+        throw new Error(tGlobal('errors.sessionExpired'))
       }
 
       // Profile row is required (FK + RLS). Create/repair before insert.
@@ -143,69 +144,73 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         profile.accountType === 'business' && profile.companyName
           ? profile.companyName
           : profile.name
-      const description =
-        input.description ||
-        'Videós bemutatóval feltöltött hirdetés. Élő hívásban bármit megmutatunk.'
-      const features = ['Videós bemutató']
+      const description = input.description || tGlobal('errors.defaultDescription')
+      const features = [tGlobal('errors.featureVideo')]
       const specs = [
-        { label: 'Évjárat', value: String(input.year) },
-        { label: 'Kilométeróra', value: `${input.mileage.toLocaleString('hu-HU')} km` },
-        { label: 'Üzemanyag', value: input.fuel },
-        { label: 'Váltó', value: input.transmission },
-        { label: 'Teljesítmény', value: input.power ? `${input.power} LE` : '—' },
-        { label: 'Helyszín', value: input.location },
+        { label: tGlobal('errors.specYear'), value: String(input.year) },
+        {
+          label: tGlobal('errors.specMileage'),
+          value: `${input.mileage.toLocaleString()} km`,
+        },
+        { label: tGlobal('errors.specFuel'), value: input.fuel },
+        { label: tGlobal('errors.specTransmission'), value: input.transmission },
+        {
+          label: tGlobal('errors.specPower'),
+          value: input.power ? tGlobal('product.power', { power: input.power }) : '—',
+        },
+        { label: tGlobal('errors.specLocation'), value: input.location },
       ]
 
       const rawFile = input.videoFile
       if (!isAllowedListingVideo(rawFile)) {
-        throw new Error('Csak videófájl tölthető fel (MP4, MOV, WebM).')
+        throw new Error(tGlobal('create.videoTypeError'))
       }
       if (rawFile.size > MAX_LISTING_VIDEO_BYTES) {
-        throw new Error('A videó maximum 150 MB lehet.')
+        throw new Error(tGlobal('create.videoSizeError'))
       }
 
       const rawFlaws = input.flawsVideoFile
       if (!isAllowedListingVideo(rawFlaws)) {
-        throw new Error('A hibák videója csak videófájl lehet (MP4, MOV, WebM).')
+        throw new Error(tGlobal('create.videoTypeError'))
       }
       if (rawFlaws.size > MAX_LISTING_VIDEO_BYTES) {
-        throw new Error('A hibák videója maximum 150 MB lehet.')
+        throw new Error(tGlobal('create.videoSizeError'))
       }
 
-      options?.onStatus?.('Bemutatóvideó tömörítése…')
+      options?.onStatus?.(tGlobal('create.compressing'))
       const file = await compressVideoForUpload(rawFile, {
         onProgress: ({ phase, ratio }) => {
           if (phase === 'loading') {
-            options?.onStatus?.('Tömörítő betöltése…')
+            options?.onStatus?.(tGlobal('create.compressing'))
             return
           }
           options?.onStatus?.(
-            `Bemutatóvideó tömörítése… ${Math.round(ratio * 100)}%`,
+            `${tGlobal('create.compressing')} ${Math.round(ratio * 100)}%`,
           )
         },
       })
 
-      options?.onStatus?.('Hibák videó tömörítése…')
+      options?.onStatus?.(tGlobal('create.compressing'))
       const flawsFile = await compressVideoForUpload(rawFlaws, {
         onProgress: ({ phase, ratio }) => {
           if (phase === 'loading') {
-            options?.onStatus?.('Tömörítő betöltése…')
+            options?.onStatus?.(tGlobal('create.compressing'))
             return
           }
           options?.onStatus?.(
-            `Hibák videó tömörítése… ${Math.round(ratio * 100)}%`,
+            `${tGlobal('create.compressing')} ${Math.round(ratio * 100)}%`,
           )
         },
       })
 
-      options?.onStatus?.('Előnézet készítése…')
+      options?.onStatus?.(tGlobal('create.publishing'))
       const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)
 
       const videoPath = `${ownerId}/${id}/video.mp4`
       const flawsPath = `${ownerId}/${id}/flaws.mp4`
       const posterPath = `${ownerId}/${id}/poster.jpg`
 
-      options?.onStatus?.('Videók feltöltése…')
+      options?.onStatus?.(tGlobal('create.publishing'))
       const { error: videoUploadError } = await supabase.storage
         .from('listing-videos')
         .upload(videoPath, file, {
@@ -214,7 +219,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           contentType: 'video/mp4',
         })
       if (videoUploadError) {
-        throw new Error(videoUploadError.message || 'Videó feltöltése sikertelen.')
+        throw new Error(videoUploadError.message || tGlobal('errors.generic'))
       }
 
       const { error: flawsUploadError } = await supabase.storage
@@ -225,7 +230,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           contentType: 'video/mp4',
         })
       if (flawsUploadError) {
-        throw new Error(flawsUploadError.message || 'Hibák videó feltöltése sikertelen.')
+        throw new Error(flawsUploadError.message || tGlobal('errors.generic'))
       }
 
       const { error: posterUploadError } = await supabase.storage
@@ -236,10 +241,10 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           contentType: 'image/jpeg',
         })
       if (posterUploadError) {
-        throw new Error(posterUploadError.message || 'Előnézet feltöltése sikertelen.')
+        throw new Error(posterUploadError.message || tGlobal('errors.generic'))
       }
 
-      options?.onStatus?.('Hirdetés mentése…')
+      options?.onStatus?.(tGlobal('create.publishing'))
       const {
         data: { publicUrl: videoUrl },
       } = supabase.storage.from('listing-videos').getPublicUrl(videoPath)
@@ -278,7 +283,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           seller_type: profile.accountType === 'business' ? 'dealer' : 'private',
           seller_status: input.status,
           seller_rating: 5.0,
-          seller_response_time: '< 5 perc',
+          seller_response_time: tGlobal('errors.responseTime'),
           seller_avatar_url: profile.avatarUrl ?? null,
           unique_views: 0,
         })
@@ -286,15 +291,13 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (insertError || !data) {
-        const msg = insertError?.message ?? 'Hirdetés mentése sikertelen.'
+        const msg = insertError?.message ?? tGlobal('errors.listingSaveFailed')
         if (
           /row-level security|RLS|permission denied|violates foreign key|video_url|flaws_video_url/i.test(
             msg,
           )
         ) {
-          throw new Error(
-            'A hirdetés mentése az adatbázisban meghiúsult. Futtasd a supabase/migrations/005_listing_videos.sql és 006_flaws_video.sql fájlokat a Supabase SQL Editorban, majd próbáld újra.',
-          )
+          throw new Error(tGlobal('errors.listingSaveRls'))
         }
         throw new Error(msg)
       }
@@ -318,7 +321,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
   const removeListing = useCallback(
     async (id: string, reason?: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold') => {
-      if (!isSupabaseConfigured) throw new Error('Supabase nincs beállítva.')
+      if (!isSupabaseConfigured) throw new Error(tGlobal('errors.supabaseMissing'))
 
       const listing = listings.find((l) => l.id === id)
 

@@ -6,6 +6,7 @@ import { formatListingTitle } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { ListingRow, ProfileRow } from '../lib/database.types'
+import { useLocale } from '../i18n/LocaleContext'
 import { NotFoundPage } from './NotFoundPage'
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined
@@ -59,17 +60,17 @@ type ListingEditForm = {
   description: string
 }
 
-function formatPrice(price: number | null) {
+function formatPrice(price: number | null, locale = 'hu-HU') {
   if (price == null) return '—'
-  return new Intl.NumberFormat('hu-HU', {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'HUF',
     maximumFractionDigits: 0,
   }).format(price)
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('hu-HU', {
+function formatDate(dateStr: string, locale = 'hu-HU') {
+  return new Date(dateStr).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -78,21 +79,21 @@ function formatDate(dateStr: string) {
   })
 }
 
-function formatDayLabel(day: string) {
-  return new Date(day + 'T12:00:00').toLocaleDateString('hu-HU', {
+function formatDayLabel(day: string, locale = 'hu-HU') {
+  return new Date(day + 'T12:00:00').toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
   })
 }
 
-function getReasonLabel(reason: string) {
+function getReasonLabel(reason: string, t: (key: string) => string) {
   switch (reason) {
     case 'sold_carbuy':
-      return 'CarBuy-on eladva'
+      return t('admin.soldCarbuy')
     case 'sold_elsewhere':
-      return 'Máshol eladva'
+      return t('admin.soldElsewhere')
     case 'not_sold':
-      return 'Nem eladva'
+      return t('admin.notSold')
     default:
       return reason
   }
@@ -101,6 +102,7 @@ function getReasonLabel(reason: string) {
 export function AdminPage() {
   const { user, loading: authLoading } = useAuth()
   const { refreshListings } = useListings()
+  const { t, locale } = useLocale()
   const [tab, setTab] = useState<AdminTab>('overview')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -174,7 +176,7 @@ export function AdminPage() {
       setUsers((usersRes.data ?? []) as ProfileRow[])
       setListings((listingsRes.data ?? []) as ListingRow[])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hiba történt')
+      setError(err instanceof Error ? err.message : t('errors.generic'))
     } finally {
       setLoading(false)
     }
@@ -224,9 +226,9 @@ export function AdminPage() {
       setUsers((prev) => prev.map((u) => (u.id === data.id ? (data as ProfileRow) : u)))
       setEditingUser(null)
       setUserForm(null)
-      setActionOk('Felhasználó mentve.')
+      setActionOk(t('admin.userSaved'))
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Mentés sikertelen')
+      setActionError(err instanceof Error ? err.message : t('errors.generic'))
     } finally {
       setSavingUser(false)
     }
@@ -264,7 +266,7 @@ export function AdminPage() {
       const mileage = Number(listingForm.mileage)
       const power = Number(listingForm.power)
       if (!Number.isFinite(year) || !Number.isFinite(price) || !Number.isFinite(mileage) || !Number.isFinite(power)) {
-        throw new Error('Év, ár, km és teljesítmény szám legyen.')
+        throw new Error(t('admin.invalidNumbers'))
       }
 
       const { data, error: updateError } = await supabase
@@ -290,17 +292,17 @@ export function AdminPage() {
       setListings((prev) => prev.map((l) => (l.id === data.id ? (data as ListingRow) : l)))
       setEditingListing(null)
       setListingForm(null)
-      setActionOk('Hirdetés mentve.')
+      setActionOk(t('admin.listingSaved'))
       void refreshListings()
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Mentés sikertelen')
+      setActionError(err instanceof Error ? err.message : t('errors.generic'))
     } finally {
       setSavingListing(false)
     }
   }
 
   const deleteListing = async (listing: ListingRow) => {
-    if (!window.confirm(`Törölöd ezt a hirdetést?\n${formatListingTitle(listing)}`)) return
+    if (!window.confirm(`${t('admin.deleteConfirm')}\n${formatListingTitle(listing)}`)) return
     setActionError(null)
     setActionOk(null)
     try {
@@ -311,10 +313,10 @@ export function AdminPage() {
         setEditingListing(null)
         setListingForm(null)
       }
-      setActionOk('Hirdetés törölve.')
+      setActionOk(t('admin.listingDeleted'))
       void refreshListings()
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Törlés sikertelen')
+      setActionError(err instanceof Error ? err.message : t('errors.generic'))
     }
   }
 
@@ -322,7 +324,7 @@ export function AdminPage() {
     return (
       <main className="page admin-page">
         <div className="container">
-          <p className="state-message">Betöltés…</p>
+          <p className="state-message">{t('common.loading')}</p>
         </div>
       </main>
     )
@@ -351,11 +353,11 @@ export function AdminPage() {
     <main className="page admin-page">
       <div className="container">
         <div className="admin-header">
-          <h1>Admin Dashboard</h1>
-          <p>Napi aktivitás, felhasználók, hirdetések és törlési statisztikák</p>
+          <h1>{t('admin.dashboard')}</h1>
+          <p>{t('admin.subtitle')}</p>
         </div>
 
-        <div className="admin-tabs" role="tablist" aria-label="Admin szekciók">
+        <div className="admin-tabs" role="tablist" aria-label={t("admin.tabs")}>
           <button
             type="button"
             role="tab"
@@ -363,7 +365,7 @@ export function AdminPage() {
             className={`admin-tab${tab === 'overview' ? ' is-active' : ''}`}
             onClick={() => setTab('overview')}
           >
-            Áttekintés
+            {t('admin.overview')}
           </button>
           <button
             type="button"
@@ -372,7 +374,7 @@ export function AdminPage() {
             className={`admin-tab${tab === 'users' ? ' is-active' : ''}`}
             onClick={() => setTab('users')}
           >
-            Felhasználók ({users.length})
+            {t('admin.users')} ({users.length})
           </button>
           <button
             type="button"
@@ -381,7 +383,7 @@ export function AdminPage() {
             className={`admin-tab${tab === 'listings' ? ' is-active' : ''}`}
             onClick={() => setTab('listings')}
           >
-            Hirdetések ({listings.length})
+            {t('admin.listings')} ({listings.length})
           </button>
         </div>
 
@@ -390,7 +392,7 @@ export function AdminPage() {
         {actionOk && <p className="admin-ok">{actionOk}</p>}
 
         {loading ? (
-          <p className="state-message">Adatok betöltése…</p>
+          <p className="state-message">{t('common.loading')}</p>
         ) : (
           <>
             {tab === 'overview' && (
@@ -398,38 +400,38 @@ export function AdminPage() {
                 <div className="admin-stats">
                   <div className="admin-stat-card">
                     <span className="admin-stat-card__value">{users.length}</span>
-                    <span className="admin-stat-card__label">Felhasználók</span>
+                    <span className="admin-stat-card__label">{t('admin.users')}</span>
                   </div>
                   <div className="admin-stat-card">
                     <span className="admin-stat-card__value">{listings.length}</span>
-                    <span className="admin-stat-card__label">Aktív hirdetések</span>
+                    <span className="admin-stat-card__label">{t('admin.activeListings')}</span>
                   </div>
                   <div className="admin-stat-card">
                     <span className="admin-stat-card__value admin-stat-card__value--accent">
                       {totalRegs}
                     </span>
-                    <span className="admin-stat-card__label">Regisztráció ({DAILY_DAYS} nap)</span>
+                    <span className="admin-stat-card__label">{t('admin.registrations', { days: DAILY_DAYS })}</span>
                   </div>
                   <div className="admin-stat-card">
                     <span className="admin-stat-card__value admin-stat-card__value--success">
                       {totalListingsPeriod}
                     </span>
-                    <span className="admin-stat-card__label">Új hirdetés ({DAILY_DAYS} nap)</span>
+                    <span className="admin-stat-card__label">{t('admin.newListings', { days: DAILY_DAYS })}</span>
                   </div>
                 </div>
 
                 <div className="admin-section">
-                  <h2>Napi aktivitás — utolsó {DAILY_DAYS} nap</h2>
+                  <h2>{t('admin.dailyActivity', { days: DAILY_DAYS })}</h2>
                   <div className="admin-legend">
-                    <span className="admin-legend__item admin-legend__item--reg">Regisztráció</span>
-                    <span className="admin-legend__item admin-legend__item--lis">Hirdetés</span>
+                    <span className="admin-legend__item admin-legend__item--reg">{t('admin.registration')}</span>
+                    <span className="admin-legend__item admin-legend__item--lis">{t('admin.listing')}</span>
                   </div>
                   {dailyStats.length === 0 ? (
-                    <p className="state-message">Nincs napi adat. Futtasd a 012_admin_panel.sql migrációt.</p>
+                    <p className="state-message">{t('admin.noDailyData')}</p>
                   ) : (
-                    <div className="admin-daily-chart" role="img" aria-label="Napi regisztrációk és hirdetések">
+                    <div className="admin-daily-chart" role="img" aria-label={t("admin.dailyChart")}>
                       {dailyStats.map((d) => (
-                        <div key={d.day} className="admin-daily-chart__col" title={`${d.day}: ${d.registrations} reg, ${d.listings_created} hirdetés`}>
+                        <div key={d.day} className="admin-daily-chart__col" title={`${d.day}: ${d.registrations} / ${d.listings_created}`}>
                           <div className="admin-daily-chart__bars">
                             <div
                               className="admin-daily-chart__bar admin-daily-chart__bar--reg"
@@ -444,7 +446,7 @@ export function AdminPage() {
                               }}
                             />
                           </div>
-                          <span className="admin-daily-chart__label">{formatDayLabel(d.day)}</span>
+                          <span className="admin-daily-chart__label">{formatDayLabel(d.day, locale)}</span>
                         </div>
                       ))}
                     </div>
@@ -456,30 +458,30 @@ export function AdminPage() {
                     <div className="admin-stats" style={{ marginTop: '1.5rem' }}>
                       <div className="admin-stat-card">
                         <span className="admin-stat-card__value">{deletionStats.total_deletions}</span>
-                        <span className="admin-stat-card__label">Összes törlés</span>
+                        <span className="admin-stat-card__label">{t('admin.totalDeletions')}</span>
                       </div>
                       <div className="admin-stat-card">
                         <span className="admin-stat-card__value admin-stat-card__value--success">
                           {deletionStats.sold_carbuy}
                         </span>
-                        <span className="admin-stat-card__label">CarBuy-on eladva</span>
+                        <span className="admin-stat-card__label">{t('admin.soldCarbuy')}</span>
                       </div>
                       <div className="admin-stat-card">
                         <span className="admin-stat-card__value admin-stat-card__value--warning">
                           {deletionStats.sold_elsewhere}
                         </span>
-                        <span className="admin-stat-card__label">Máshol eladva</span>
+                        <span className="admin-stat-card__label">{t('admin.soldElsewhere')}</span>
                       </div>
                       <div className="admin-stat-card">
                         <span className="admin-stat-card__value admin-stat-card__value--accent">
                           {deletionStats.carbuy_conversion_rate}%
                         </span>
-                        <span className="admin-stat-card__label">CarBuy konverzió</span>
+                        <span className="admin-stat-card__label">{t('admin.conversion')}</span>
                       </div>
                     </div>
 
                     <div className="admin-section">
-                      <h2>Eladási statisztikák</h2>
+                      <h2>{t('admin.salesStats')}</h2>
                       <div className="admin-chart">
                         <div className="admin-chart__bar">
                           <div
@@ -489,7 +491,7 @@ export function AdminPage() {
                             }}
                           />
                           <span className="admin-chart__value">{deletionStats.sold_carbuy}</span>
-                          <span className="admin-chart__label">CarBuy</span>
+                          <span className="admin-chart__label">{t('admin.carbuy')}</span>
                         </div>
                         <div className="admin-chart__bar">
                           <div
@@ -499,7 +501,7 @@ export function AdminPage() {
                             }}
                           />
                           <span className="admin-chart__value">{deletionStats.sold_elsewhere}</span>
-                          <span className="admin-chart__label">Máshol</span>
+                          <span className="admin-chart__label">{t('admin.elsewhere')}</span>
                         </div>
                         <div className="admin-chart__bar">
                           <div
@@ -509,7 +511,7 @@ export function AdminPage() {
                             }}
                           />
                           <span className="admin-chart__value">{deletionStats.not_sold}</span>
-                          <span className="admin-chart__label">Nem eladva</span>
+                          <span className="admin-chart__label">{t('admin.notSold')}</span>
                         </div>
                       </div>
                     </div>
@@ -518,15 +520,15 @@ export function AdminPage() {
 
                 {recentDeletions.length > 0 && (
                   <div className="admin-section" style={{ marginTop: '1.5rem' }}>
-                    <h2>Legutóbbi törlések</h2>
+                    <h2>{t('admin.recentDeletions')}</h2>
                     <div className="admin-table-wrap">
                       <table className="admin-table">
                         <thead>
                           <tr>
-                            <th>Hirdetés</th>
-                            <th>Ár</th>
-                            <th>Ok</th>
-                            <th>Dátum</th>
+                            <th>{t('admin.listing')}</th>
+                            <th>{t('admin.price')}</th>
+                            <th>{t('admin.reason')}</th>
+                            <th>{t('admin.date')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -537,13 +539,13 @@ export function AdminPage() {
                                   `${d.listing_make || ''} ${d.listing_model || ''}`.trim() ||
                                   '—'}
                               </td>
-                              <td>{formatPrice(d.listing_price)}</td>
+                              <td>{formatPrice(d.listing_price, locale)}</td>
                               <td>
                                 <span className={`admin-reason admin-reason--${d.reason}`}>
-                                  {getReasonLabel(d.reason)}
+                                  {getReasonLabel(d.reason, t)}
                                 </span>
                               </td>
-                              <td>{formatDate(d.created_at)}</td>
+                              <td>{formatDate(d.created_at, locale)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -557,12 +559,12 @@ export function AdminPage() {
             {tab === 'users' && (
               <div className="admin-section">
                 <div className="admin-section__head">
-                  <h2>Regisztrált felhasználók</h2>
+                  <h2>{t('admin.registeredUsers')}</h2>
                   <label className="admin-search">
-                    <span className="sr-only">Keresés e-mailre</span>
+                    <span className="sr-only">{t('admin.searchEmail')}</span>
                     <input
                       type="search"
-                      placeholder="Keresés e-mailre…"
+                      placeholder={t("admin.searchEmail")}
                       value={userEmailQuery}
                       onChange={(e) => setUserEmailQuery(e.target.value)}
                       autoComplete="off"
@@ -573,11 +575,11 @@ export function AdminPage() {
                   <table className="admin-table">
                     <thead>
                       <tr>
-                        <th>Név</th>
-                        <th>Email</th>
-                        <th>Típus</th>
-                        <th>Telefon</th>
-                        <th>Regisztráció</th>
+                        <th>{t('admin.name')}</th>
+                        <th>{t('admin.email')}</th>
+                        <th>{t('admin.type')}</th>
+                        <th>{t('admin.phone')}</th>
+                        <th>{t('admin.registered')}</th>
                         <th />
                       </tr>
                     </thead>
@@ -586,8 +588,8 @@ export function AdminPage() {
                         <tr>
                           <td colSpan={6} className="admin-table__empty">
                             {emailQuery
-                              ? `Nincs találat erre: ${userEmailQuery.trim()}`
-                              : 'Nincs felhasználó.'}
+                              ? t('admin.noUserMatch', { q: userEmailQuery.trim(), query: userEmailQuery.trim() })
+                              : t('admin.noUsers')}
                           </td>
                         </tr>
                       ) : (
@@ -595,17 +597,15 @@ export function AdminPage() {
                           <tr key={u.id}>
                             <td>{u.name}</td>
                             <td>{u.email}</td>
-                            <td>{u.account_type === 'business' ? 'Céges' : 'Magán'}</td>
+                            <td>{u.account_type === 'business' ? t('admin.business') : t('admin.personal')}</td>
                             <td>{u.phone || '—'}</td>
-                            <td>{formatDate(u.created_at)}</td>
+                            <td>{formatDate(u.created_at, locale)}</td>
                             <td>
                               <button
                                 type="button"
                                 className="btn btn--ghost btn--sm"
                                 onClick={() => openUserEdit(u)}
-                              >
-                                Szerkesztés
-                              </button>
+                              >{t('admin.edit')}</button>
                             </td>
                           </tr>
                         ))
@@ -618,16 +618,16 @@ export function AdminPage() {
 
             {tab === 'listings' && (
               <div className="admin-section">
-                <h2>Hirdetések</h2>
+                <h2>{t('admin.listings')}</h2>
                 <div className="admin-table-wrap">
                   <table className="admin-table">
                     <thead>
                       <tr>
-                        <th>Hirdetés</th>
-                        <th>Ár</th>
-                        <th>Helyszín</th>
-                        <th>Eladó</th>
-                        <th>Létrehozva</th>
+                        <th>{t('admin.listing')}</th>
+                        <th>{t('admin.price')}</th>
+                        <th>{t('admin.location')}</th>
+                        <th>{t('admin.seller')}</th>
+                        <th>{t('admin.created')}</th>
                         <th />
                       </tr>
                     </thead>
@@ -639,25 +639,21 @@ export function AdminPage() {
                               {formatListingTitle(l)}
                             </Link>
                           </td>
-                          <td>{formatPrice(l.price)}</td>
+                          <td>{formatPrice(l.price, locale)}</td>
                           <td>{l.location || '—'}</td>
                           <td>{l.seller_name}</td>
-                          <td>{formatDate(l.created_at)}</td>
+                          <td>{formatDate(l.created_at, locale)}</td>
                           <td className="admin-row-actions">
                             <button
                               type="button"
                               className="btn btn--ghost btn--sm"
                               onClick={() => openListingEdit(l)}
-                            >
-                              Szerkesztés
-                            </button>
+                            >{t('admin.edit')}</button>
                             <button
                               type="button"
                               className="btn btn--ghost btn--sm admin-btn-danger"
                               onClick={() => void deleteListing(l)}
-                            >
-                              Törlés
-                            </button>
+                            >{t('admin.delete')}</button>
                           </td>
                         </tr>
                       ))}
@@ -684,11 +680,11 @@ export function AdminPage() {
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => void saveUser(e)}
           >
-            <h2 className="dialog__title">Felhasználó szerkesztése</h2>
+            <h2 className="dialog__title">{t('admin.editUser')}</h2>
             <p className="dialog__text">{editingUser.email}</p>
 
             <label className="admin-field">
-              <span>Név</span>
+              <span>{t('admin.name')}</span>
               <input
                 value={userForm.name}
                 onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
@@ -696,14 +692,14 @@ export function AdminPage() {
               />
             </label>
             <label className="admin-field">
-              <span>Telefon</span>
+              <span>{t('admin.phone')}</span>
               <input
                 value={userForm.phone}
                 onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
               />
             </label>
             <label className="admin-field">
-              <span>Fióktípus</span>
+              <span>{t('admin.accountType')}</span>
               <select
                 value={userForm.account_type}
                 onChange={(e) =>
@@ -713,13 +709,13 @@ export function AdminPage() {
                   })
                 }
               >
-                <option value="personal">Magán</option>
-                <option value="business">Céges</option>
+                <option value="personal">{t('admin.personal')}</option>
+                <option value="business">{t('admin.business')}</option>
               </select>
             </label>
             {userForm.account_type === 'business' && (
               <label className="admin-field">
-                <span>Cégnév</span>
+                <span>{t('admin.company')}</span>
                 <input
                   value={userForm.company_name}
                   onChange={(e) => setUserForm({ ...userForm, company_name: e.target.value })}
@@ -727,7 +723,7 @@ export function AdminPage() {
               </label>
             )}
             <label className="admin-field">
-              <span>Eladói státusz</span>
+              <span>{t('admin.sellerStatus')}</span>
               <select
                 value={userForm.seller_status}
                 onChange={(e) =>
@@ -737,9 +733,9 @@ export function AdminPage() {
                   })
                 }
               >
-                <option value="online">Online</option>
-                <option value="busy">Elfoglalt</option>
-                <option value="offline">Offline</option>
+                <option value="online">{t('status.online')}</option>
+                <option value="busy">{t('status.busy')}</option>
+                <option value="offline">{t('status.offline')}</option>
               </select>
             </label>
 
@@ -751,11 +747,9 @@ export function AdminPage() {
                   setEditingUser(null)
                   setUserForm(null)
                 }}
-              >
-                Mégse
-              </button>
+              >{t('common.cancel')}</button>
               <button type="submit" className="btn btn--primary" disabled={savingUser}>
-                {savingUser ? 'Mentés…' : 'Mentés'}
+                {savingUser ? t('editProfile.saving') : t('editProfile.save')}
               </button>
             </div>
           </form>
@@ -776,11 +770,11 @@ export function AdminPage() {
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => void saveListing(e)}
           >
-            <h2 className="dialog__title">Hirdetés szerkesztése</h2>
+            <h2 className="dialog__title">{t('admin.editListing')}</h2>
 
             <div className="admin-edit-grid">
               <label className="admin-field">
-                <span>Cím</span>
+                <span>{t('create.title')}</span>
                 <input
                   value={listingForm.title}
                   onChange={(e) => setListingForm({ ...listingForm, title: e.target.value })}
@@ -788,7 +782,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Márka</span>
+                <span>{t('create.make')}</span>
                 <input
                   value={listingForm.make}
                   onChange={(e) => setListingForm({ ...listingForm, make: e.target.value })}
@@ -796,7 +790,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Modell</span>
+                <span>{t('create.model')}</span>
                 <input
                   value={listingForm.model}
                   onChange={(e) => setListingForm({ ...listingForm, model: e.target.value })}
@@ -804,7 +798,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Évjárat</span>
+                <span>{t('create.year')}</span>
                 <input
                   type="number"
                   value={listingForm.year}
@@ -813,7 +807,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Ár (Ft)</span>
+                <span>{t('create.price')}</span>
                 <input
                   type="number"
                   value={listingForm.price}
@@ -822,7 +816,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Km</span>
+                <span>{t('create.mileage')}</span>
                 <input
                   type="number"
                   value={listingForm.mileage}
@@ -831,21 +825,21 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Üzemanyag</span>
+                <span>{t('create.fuel')}</span>
                 <input
                   value={listingForm.fuel}
                   onChange={(e) => setListingForm({ ...listingForm, fuel: e.target.value })}
                 />
               </label>
               <label className="admin-field">
-                <span>Váltó</span>
+                <span>{t('create.transmission')}</span>
                 <input
                   value={listingForm.transmission}
                   onChange={(e) => setListingForm({ ...listingForm, transmission: e.target.value })}
                 />
               </label>
               <label className="admin-field">
-                <span>Teljesítmény (LE)</span>
+                <span>{t('create.power')}</span>
                 <input
                   type="number"
                   value={listingForm.power}
@@ -853,7 +847,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="admin-field">
-                <span>Helyszín</span>
+                <span>{t('create.location')}</span>
                 <input
                   value={listingForm.location}
                   onChange={(e) => setListingForm({ ...listingForm, location: e.target.value })}
@@ -861,7 +855,7 @@ export function AdminPage() {
               </label>
             </div>
             <label className="admin-field">
-              <span>Leírás</span>
+              <span>{t('create.description')}</span>
               <textarea
                 rows={4}
                 value={listingForm.description}
@@ -877,11 +871,9 @@ export function AdminPage() {
                   setEditingListing(null)
                   setListingForm(null)
                 }}
-              >
-                Mégse
-              </button>
+              >{t('common.cancel')}</button>
               <button type="submit" className="btn btn--primary" disabled={savingListing}>
-                {savingListing ? 'Mentés…' : 'Mentés'}
+                {savingListing ? t('editProfile.saving') : t('editProfile.save')}
               </button>
             </div>
           </form>

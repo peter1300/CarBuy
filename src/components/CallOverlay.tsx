@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCall } from '../context/CallContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { formatCallDuration } from '../lib/callMedia'
 
 export function CallOverlay() {
@@ -13,6 +14,7 @@ export function CallOverlay() {
     toggleMute,
     toggleCamera,
   } = useCall()
+  const { t } = useLocale()
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
@@ -60,23 +62,21 @@ export function CallOverlay() {
 
   const statusLabel =
     call.phase === 'requesting'
-      ? 'Kapcsolódás…'
+      ? t('call.connecting')
       : call.phase === 'ringing' && call.direction === 'outgoing'
-        ? 'Csörög…'
+        ? t('call.ringing')
         : call.phase === 'ringing' && call.direction === 'incoming'
-          ? 'Bejövő hívás'
+          ? t('call.ringing')
           : call.phase === 'connecting'
-            ? 'Csatlakozás…'
+            ? t('call.connecting')
             : call.phase === 'connected'
-              ? remoteStream
-                ? 'Kapcsolatban'
-                : 'Kapcsolódás a másik félhez…'
+              ? t('call.inCall')
               : call.phase === 'failed'
-                ? 'Sikertelen'
-                : 'Befejezve'
+                ? t('call.failed')
+                : t('call.ended')
 
   return (
-    <div className="call-overlay" role="dialog" aria-modal="true" aria-label="Hívás">
+    <div className="call-overlay" role="dialog" aria-modal="true" aria-label={t('call.live')}>
       <div className="call-overlay__stage">
         <div className="call-overlay__remote">
           {showRemoteVideo ? (
@@ -96,14 +96,14 @@ export function CallOverlay() {
           {remoteStream && !isVideo && <audio ref={remoteAudioRef} autoPlay />}
           <div className="call-overlay__remote-shade" />
           {call.phase === 'connected' && remoteStream && (
-            <div className="call-overlay__live-badge">Élő kapcsolat</div>
+            <div className="call-overlay__live-badge">{t('call.live')}</div>
           )}
         </div>
 
         {isVideo && localStream && call.phase !== 'failed' && (
           <div className={`call-overlay__local${call.cameraOff ? ' is-off' : ''}`}>
             <video ref={localVideoRef} autoPlay playsInline muted />
-            {call.cameraOff && <span>Kamera ki</span>}
+            {call.cameraOff && <span>{t('call.cameraOff')}</span>}
           </div>
         )}
 
@@ -115,7 +115,7 @@ export function CallOverlay() {
             {liveDuration && <span className="call-overlay__timer"> · {liveDuration}</span>}
           </p>
           <p className="call-overlay__mode">
-            {isVideo ? 'Videóhívás' : 'Hanghívás'} · biztonságos platformon belül
+            {isVideo ? t('product.videoCall') : t('product.voiceCall')}
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export function CallOverlay() {
                 type="button"
                 className="call-ctrl call-ctrl--reject"
                 onClick={rejectIncoming}
-                aria-label="Elutasítás"
+                aria-label={t('call.reject')}
               >
                 <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
                   <path
@@ -136,13 +136,13 @@ export function CallOverlay() {
                     strokeLinecap="round"
                   />
                 </svg>
-                <span>Elutasítom</span>
+                <span>{t('call.reject')}</span>
               </button>
               <button
                 type="button"
                 className="call-ctrl call-ctrl--accept"
                 onClick={() => void acceptIncoming()}
-                aria-label="Fogadás"
+                aria-label={t('call.accept')}
               >
                 <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
                   <path
@@ -152,12 +152,12 @@ export function CallOverlay() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span>Fogadom</span>
+                <span>{t('call.accept')}</span>
               </button>
             </>
           ) : call.phase === 'failed' || call.phase === 'ended' ? (
             <button type="button" className="call-ctrl call-ctrl--end" onClick={endCall}>
-              Bezárás
+              {t('call.close')}
             </button>
           ) : (
             <>
@@ -165,7 +165,7 @@ export function CallOverlay() {
                 type="button"
                 className={`call-ctrl${call.muted ? ' is-active' : ''}`}
                 onClick={toggleMute}
-                aria-label={call.muted ? 'Mikrofon be' : 'Némítás'}
+                aria-label={call.muted ? t('reels.unmute') : t('reels.mute')}
               >
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
                   <rect x="8" y="3" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="1.6" />
@@ -186,7 +186,7 @@ export function CallOverlay() {
                   type="button"
                   className={`call-ctrl${call.cameraOff ? ' is-active' : ''}`}
                   onClick={toggleCamera}
-                  aria-label={call.cameraOff ? 'Kamera be' : 'Kamera ki'}
+                  aria-label={t('call.cameraOff')}
                 >
                   <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
                     <rect x="3" y="6" width="11" height="10" rx="2" stroke="currentColor" strokeWidth="1.6" />
@@ -202,7 +202,7 @@ export function CallOverlay() {
                 type="button"
                 className="call-ctrl call-ctrl--end"
                 onClick={endCall}
-                aria-label="Hívás befejezése"
+                aria-label={t('call.close')}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path

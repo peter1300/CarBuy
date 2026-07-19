@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Listing } from '../data/listings'
+import { useLocale } from '../i18n/LocaleContext'
 
 export type DeletionReason = 'sold_carbuy' | 'sold_elsewhere' | 'not_sold'
 
@@ -12,6 +13,7 @@ interface DeleteListingDialogProps {
 }
 
 export function DeleteListingDialog({ listing, onConfirm, onCancel }: DeleteListingDialogProps) {
+  const { t } = useLocale()
   const [step, setStep] = useState<Step>('ask_sold')
   const [reason, setReason] = useState<DeletionReason | null>(null)
 
@@ -41,47 +43,47 @@ export function DeleteListingDialog({ listing, onConfirm, onCancel }: DeleteList
       <div className="dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         {step === 'ask_sold' && (
           <>
-            <h2 className="dialog__title">Hirdetés törlése</h2>
+            <h2 className="dialog__title">{t('delete.title')}</h2>
             <p className="dialog__text">
-              Biztosan törölni szeretnéd a(z) <strong>{listing.title}</strong> hirdetést?
+              {t('delete.confirmText', { title: listing.title })}
             </p>
-            <p className="dialog__question">Eladtad az autót?</p>
+            <p className="dialog__question">{t('delete.askSold')}</p>
             <div className="dialog__actions">
               <button type="button" className="btn btn--accent" onClick={handleSoldYes}>
-                Igen, eladtam
+                {t('delete.soldYes')}
               </button>
               <button type="button" className="btn btn--outline" onClick={handleSoldNo}>
-                Nem, még nem adtam el
+                {t('delete.soldNo')}
               </button>
             </div>
             <button type="button" className="dialog__cancel" onClick={onCancel}>
-              Mégsem
+              {t('delete.cancel')}
             </button>
           </>
         )}
 
         {step === 'ask_where' && (
           <>
-            <h2 className="dialog__title">Gratulálunk az eladáshoz!</h2>
-            <p className="dialog__question">Hol találtad a vevőt?</p>
+            <h2 className="dialog__title">{t('delete.congrats')}</h2>
+            <p className="dialog__question">{t('delete.askWhere')}</p>
             <div className="dialog__actions dialog__actions--vertical">
               <button
                 type="button"
                 className="btn btn--accent btn--lg"
                 onClick={() => handleWhere(true)}
               >
-                A CarBuy-on
+                {t('delete.onCarbuy')}
               </button>
               <button
                 type="button"
                 className="btn btn--outline btn--lg"
                 onClick={() => handleWhere(false)}
               >
-                Máshol
+                {t('delete.elsewhere')}
               </button>
             </div>
             <button type="button" className="dialog__cancel" onClick={onCancel}>
-              Mégsem
+              {t('delete.cancel')}
             </button>
           </>
         )}
@@ -90,24 +92,24 @@ export function DeleteListingDialog({ listing, onConfirm, onCancel }: DeleteList
           <>
             <h2 className="dialog__title">
               {reason === 'sold_carbuy'
-                ? 'Köszönjük, hogy a CarBuy-t választottad!'
+                ? t('delete.thanksCarbuy')
                 : reason === 'sold_elsewhere'
-                  ? 'Köszönjük a visszajelzést!'
-                  : 'Hirdetés törlése'}
+                  ? t('delete.thanksElsewhere')
+                  : t('delete.title')}
             </h2>
             <p className="dialog__text">
               {reason === 'sold_carbuy'
-                ? 'Örülünk, hogy segíthettünk a vevő megtalálásában. A hirdetésed most törlésre kerül.'
+                ? t('delete.bodyCarbuy')
                 : reason === 'sold_elsewhere'
-                  ? 'Legközelebb nálunk is hirdess! A hirdetésed most törlésre kerül.'
-                  : 'A hirdetésed törlésre kerül. Később bármikor feladhatsz újat.'}
+                  ? t('delete.bodyElsewhere')
+                  : t('delete.bodyNotSold')}
             </p>
             <div className="dialog__actions">
               <button type="button" className="btn btn--accent" onClick={handleConfirm}>
-                Törlés megerősítése
+                {reason === 'not_sold' ? t('delete.confirmNotSold') : t('delete.confirmBtn')}
               </button>
               <button type="button" className="btn btn--outline" onClick={onCancel}>
-                Mégsem
+                {t('delete.cancel')}
               </button>
             </div>
           </>

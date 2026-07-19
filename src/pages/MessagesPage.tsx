@@ -6,11 +6,12 @@ import {
   MAX_MESSAGE_VIDEO_BYTES,
   useMessages,
 } from '../context/MessagesContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { listingPath } from '../lib/listingUrl'
 
-function formatTime(iso: string) {
+function formatTime(iso: string, locale: string) {
   try {
-    return new Intl.DateTimeFormat('hu-HU', {
+    return new Intl.DateTimeFormat(locale, {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -24,12 +25,13 @@ function formatTime(iso: string) {
 export function MessagesInboxPage() {
   const { user, loading: authLoading } = useAuth()
   const { conversations, loadingConversations, conversationsError } = useMessages()
+  const { t, locale } = useLocale()
 
   if (authLoading) {
     return (
       <main className="page messages-page">
         <div className="container">
-          <p className="state-message">Betöltés…</p>
+          <p className="state-message">{t('messages.loading')}</p>
         </div>
       </main>
     )
@@ -43,18 +45,16 @@ export function MessagesInboxPage() {
     <main className="page messages-page">
       <div className="container messages-page__narrow">
         <header className="messages-header">
-          <h1>Üzenetek</h1>
-          <p>Hirdetéshez kötött beszélgetések — szöveggel és videóval.</p>
+          <h1>{t('messages.title')}</h1>
+          <p>{t('messages.emptyHint')}</p>
         </header>
 
-        {loadingConversations && <p className="state-message">Beszélgetések betöltése…</p>}
+        {loadingConversations && <p className="state-message">{t('messages.loading')}</p>}
         {conversationsError && !loadingConversations && (
           <p className="form-error">{conversationsError}</p>
         )}
         {!loadingConversations && !conversationsError && conversations.length === 0 && (
-          <p className="state-message">
-            Még nincs beszélgetésed. Egy hirdetés oldalán indíts üzenetet.
-          </p>
+          <p className="state-message">{t('messages.empty')}</p>
         )}
 
         {conversations.length > 0 && (
@@ -75,7 +75,7 @@ export function MessagesInboxPage() {
                           <span className="messages-thread__unread">{c.unreadCount}</span>
                         )}
                       </strong>
-                      <time dateTime={c.lastMessageAt}>{formatTime(c.lastMessageAt)}</time>
+                      <time dateTime={c.lastMessageAt}>{formatTime(c.lastMessageAt, locale)}</time>
                     </span>
                     <span className="messages-thread__listing">{c.listingTitle}</span>
                     <span className="messages-thread__preview">{c.lastPreview}</span>
@@ -105,6 +105,7 @@ export function MessagesChatPage() {
     sendMessage,
     refreshConversations,
   } = useMessages()
+  const { t, locale } = useLocale()
 
   const [text, setText] = useState('')
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -134,7 +135,7 @@ export function MessagesChatPage() {
     return (
       <main className="page messages-page">
         <div className="container">
-          <p className="state-message">Betöltés…</p>
+          <p className="state-message">{t('messages.loading')}</p>
         </div>
       </main>
     )
@@ -158,9 +159,9 @@ export function MessagesChatPage() {
     return (
       <main className="page messages-page">
         <div className="container messages-page__narrow">
-          <p className="form-error">A beszélgetés nem található.</p>
+          <p className="form-error">{t('messages.notFound')}</p>
           <Link to="/uzenetek" className="btn btn--outline">
-            Vissza az üzenetekhez
+            {t('messages.back')}
           </Link>
         </div>
       </main>
@@ -174,12 +175,12 @@ export function MessagesChatPage() {
       return
     }
     if (!ALLOWED_MESSAGE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_MESSAGE_VIDEO_TYPES)[number]) && !file.type.startsWith('video/')) {
-      setSendError('Csak videófájl csatolható.')
+      setSendError(t('messages.videoType'))
       setVideoFile(null)
       return
     }
     if (file.size > MAX_MESSAGE_VIDEO_BYTES) {
-      setSendError('A videó maximum 150 MB lehet (feltöltés előtt tömörítjük).')
+      setSendError(t('messages.videoSize'))
       setVideoFile(null)
       return
     }
@@ -211,10 +212,10 @@ export function MessagesChatPage() {
       <div className="container messages-page__chat">
         <header className="messages-chat-header">
           <button type="button" className="product__back" onClick={() => navigate('/uzenetek')}>
-            ← Üzenetek
+            ← {t('messages.back')}
           </button>
           <div className="messages-chat-header__meta">
-            <h1>{conversation?.otherName ?? 'Beszélgetés'}</h1>
+            <h1>{conversation?.otherName ?? t('messages.title')}</h1>
             {conversation && (
               <p>
                 <Link
@@ -233,10 +234,10 @@ export function MessagesChatPage() {
         </header>
 
         <div className="messages-chat-stream" role="log" aria-live="polite">
-          {loadingMessages && <p className="state-message">Üzenetek betöltése…</p>}
+          {loadingMessages && <p className="state-message">{t('messages.loading')}</p>}
           {messagesError && !loadingMessages && <p className="form-error">{messagesError}</p>}
           {!loadingMessages && messages.length === 0 && (
-            <p className="state-message">Írd meg az első üzenetet — videót is csatolhatsz.</p>
+            <p className="state-message">{t('messages.empty')}</p>
           )}
           {messages.map((msg) => {
             const mine = msg.senderId === user.id
@@ -256,10 +257,10 @@ export function MessagesChatPage() {
                   />
                 )}
                 {msg.videoPath && !msg.videoUrl && (
-                  <p className="messages-bubble__text">Videó betöltése…</p>
+                  <p className="messages-bubble__text">{t('messages.loading')}</p>
                 )}
                 <time className="messages-bubble__time" dateTime={msg.createdAt}>
-                  {formatTime(msg.createdAt)}
+                  {formatTime(msg.createdAt, locale)}
                 </time>
               </article>
             )
@@ -280,7 +281,7 @@ export function MessagesChatPage() {
                   if (fileRef.current) fileRef.current.value = ''
                 }}
               >
-                Eltávolítás
+                {t('messages.remove')}
               </button>
             </div>
           )}
@@ -298,19 +299,19 @@ export function MessagesChatPage() {
                   <path d="M13 9l4-2v8l-4-2V9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
                 </svg>
               </span>
-              <span className="sr-only">Videó csatolása</span>
+              <span className="sr-only">{t('messages.attachVideo')}</span>
             </label>
             <input
               type="text"
               className="messages-composer__input"
-              placeholder="Üzenet…"
+              placeholder={t('messages.placeholder')}
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={2000}
               disabled={sending}
             />
             <button type="submit" className="btn btn--accent" disabled={sending}>
-              {sending ? 'Küldés…' : 'Küldés'}
+              {sending ? t('messages.send') : t('messages.send')}
             </button>
           </div>
         </form>

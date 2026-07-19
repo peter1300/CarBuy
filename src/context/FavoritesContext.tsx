@@ -10,6 +10,7 @@ import {
 import { useAuth } from './AuthContext'
 import type { Listing } from '../data/listings'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { tGlobal } from '../i18n/messages'
 import {
   forgetFavorite,
   rememberFavorite,
@@ -73,7 +74,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         return { requiresAuth: true }
       }
       if (!isSupabaseConfigured) {
-        return { error: 'Supabase nincs beállítva.' }
+        return { error: tGlobal('errors.supabaseMissing') }
       }
 
       const currentlyFavorite = favoriteIds.has(listing.id)

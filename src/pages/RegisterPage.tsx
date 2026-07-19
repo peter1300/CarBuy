@@ -49,38 +49,15 @@ export function RegisterPage() {
       <div className="auth-atmosphere" aria-hidden="true" />
       <div className="container auth-layout">
         <aside className="auth-pitch">
-          <p className="auth-pitch__eyebrow">Csatlakozz most</p>
-          <h1 className="auth-pitch__title">
-            Az első hirdetésed
-            <span> ingyenes.</span>
-          </h1>
-          <p className="auth-pitch__text">
-            Videón mutatod az autót, élőben válaszolsz — a vevő percek alatt dönt. A CarBuy-on
-            nem fotók között keresgélnek: meggyőződnek.
-          </p>
-          <ul className="auth-pitch__list">
-            <li>
-              <strong>Gyorsabb eladás</strong>
-              <span>Kevesebb érdeklődő, több komoly vevő.</span>
-            </li>
-            <li>
-              <strong>Biztonságos hívás</strong>
-              <span>Hang és videó csak Online státuszban, platformon belül.</span>
-            </li>
-            <li>
-              <strong>Később skálázható</strong>
-              <span>Céges előfizetés és magán hirdetéscsomagok — hamarosan.</span>
-            </li>
-          </ul>
+          <p className="auth-pitch__eyebrow">{t('register.pitchEyebrow')}</p>
+          <h1 className="auth-pitch__title">{t('register.pitchTitle')}</h1>
+          <p className="auth-pitch__text">{t('register.pitchText')}</p>
         </aside>
 
         <div className="auth-panel">
           {step === 'choose' ? (
             <div className="auth-panel__inner">
-              <h2 className="auth-panel__title">Milyen fiókot szeretnél?</h2>
-              <p className="auth-panel__sub">
-                Válaszd ki a profilod — mindkettővel azonnal feladhatsz hirdetést.
-              </p>
+              <h2 className="auth-panel__title">{t('register.chooseTitle')}</h2>
 
               <div className="account-choice">
                 <button
@@ -99,12 +76,9 @@ export function RegisterPage() {
                       />
                     </svg>
                   </span>
-                  <span className="account-choice__label">Magánszemély</span>
-                  <span className="account-choice__desc">
-                    Egy autó eladása? Az első hirdetés mindig ingyenes — továbbiak autóként
-                    vásárolhatók.
-                  </span>
-                  <span className="account-choice__cta">Tovább →</span>
+                  <span className="account-choice__label">{t('register.personal')}</span>
+                  <span className="account-choice__desc">{t('register.personalHint')}</span>
+                  <span className="account-choice__cta">{t('create.next')} →</span>
                 </button>
 
                 <button
@@ -112,18 +86,16 @@ export function RegisterPage() {
                   className="account-choice__card account-choice__card--business"
                   onClick={() => selectType('business')}
                 >
-                  <span className="account-choice__badge">Kereskedőknek</span>
+                  <span className="account-choice__badge">{t('register.business')}</span>
                   <span className="account-choice__icon" aria-hidden="true">
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                       <rect x="4" y="8" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
                       <path d="M4 12h20M10 8V6.5A1.5 1.5 0 0111.5 5h5A1.5 1.5 0 0118 6.5V8" stroke="currentColor" strokeWidth="1.6" />
                     </svg>
                   </span>
-                  <span className="account-choice__label">Vállalkozás</span>
-                  <span className="account-choice__desc">
-                    Mutasd be a flottát élőben. Később előfizetéssel több hirdetés egy csomagban.
-                  </span>
-                  <span className="account-choice__cta">Tovább →</span>
+                  <span className="account-choice__label">{t('register.business')}</span>
+                  <span className="account-choice__desc">{t('register.businessHint')}</span>
+                  <span className="account-choice__cta">{t('create.next')} →</span>
                 </button>
               </div>
 
@@ -138,43 +110,36 @@ export function RegisterPage() {
                 className="auth-back"
                 onClick={() => setStep('choose')}
               >
-                ← Vissza a választáshoz
+                ← {t('register.back')}
               </button>
 
               <div className="auth-type-pill">
-                {accountType === 'personal' ? 'Magánszemély' : 'Vállalkozás'}
+                {accountType === 'personal' ? t('register.personal') : t('register.business')}
               </div>
 
-              <h2 className="auth-panel__title">
-                {accountType === 'personal' ? 'Hozd létre a fiókod' : 'Céges fiók létrehozása'}
-              </h2>
-              <p className="auth-panel__sub">
-                Perc alatt kész — utána azonnal feltöltheted az első videós hirdetést.
-              </p>
+              <h2 className="auth-panel__title">{t('register.create')}</h2>
 
               <div className="form-stack">
                 {accountType === 'business' && (
                   <div className="form-field">
-                    <label htmlFor="company">Cégnév</label>
+                    <label htmlFor="company">{t('register.company')}</label>
                     <input
                       id="company"
                       required
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="pl. AutoVista Kft."
                       autoComplete="organization"
                     />
                   </div>
                 )}
 
                 <div className="form-field">
-                  <label htmlFor="name">{accountType === 'business' ? 'Kapcsolattartó neve' : 'Teljes név'}</label>
+                  <label htmlFor="name">{t('auth.name')}</label>
                   <input
                     id="name"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="pl. Kovács Anna"
                     autoComplete="name"
                   />
                 </div>
@@ -187,7 +152,6 @@ export function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nev@email.hu"
                     autoComplete="email"
                   />
                 </div>
@@ -201,7 +165,6 @@ export function RegisterPage() {
                     minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Legalább 8 karakter"
                     autoComplete="new-password"
                   />
                 </div>
@@ -213,10 +176,7 @@ export function RegisterPage() {
                     onChange={(e) => setAccepted(e.target.checked)}
                     required
                   />
-                  <span>
-                    Elfogadom az ÁSZF-et és a adatvédelmi tájékoztatót. Tudom, hogy az első
-                    hirdetés ingyenes.
-                  </span>
+                  <span>{t('register.accept')}</span>
                 </label>
 
                 {formError && <p className="form-error">{formError}</p>}
@@ -226,7 +186,7 @@ export function RegisterPage() {
                   className="btn btn--accent btn--lg btn--block"
                   disabled={!accepted || submitting}
                 >
-                  {submitting ? 'Létrehozás…' : 'Fiók létrehozása'}
+                  {submitting ? t('register.creating') : t('register.create')}
                 </button>
               </div>
 

@@ -12,6 +12,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { ProfileRow } from '../lib/database.types'
 import { validateAvatarFile } from '../lib/avatar'
+import { tGlobal } from '../i18n/messages'
 
 export type AccountType = 'personal' | 'business'
 
@@ -74,7 +75,7 @@ function userFromAuth(authUser: SupabaseUser): User {
   const name =
     (typeof meta.name === 'string' && meta.name) ||
     authUser.email?.split('@')[0] ||
-    'Felhasználó'
+    tGlobal('common.user')
   const companyName =
     typeof meta.company_name === 'string' && meta.company_name ? meta.company_name : undefined
 
@@ -198,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       companyName?: string
     }) => {
       if (!isSupabaseConfigured) {
-        return { error: 'Supabase nincs beállítva. Add meg a VITE_SUPABASE_* változókat.' }
+        return { error: tGlobal('errors.supabaseMissing') }
       }
 
       const { data: signUpData, error } = await supabase.auth.signUp({
@@ -215,12 +216,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       if (error) return { error: error.message }
-      if (!signUpData.user) return { error: 'Regisztráció sikertelen.' }
+      if (!signUpData.user) return { error: tGlobal('errors.registerFailed') }
 
       if (!signUpData.session) {
         return {
-          error:
-            'Fiók létrejött. Erősítsd meg az e-mailed (vagy kapcsold ki a megerősítést a Supabase Auth beállításokban), majd lépj be.',
+          error: tGlobal('errors.registerConfirmEmail'),
         }
       }
 
@@ -234,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
-      return { error: 'Supabase nincs beállítva. Add meg a VITE_SUPABASE_* változókat.' }
+      return { error: tGlobal('errors.supabaseMissing') }
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -242,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     })
     if (error) return { error: error.message }
-    if (!data.user || !data.session) return { error: 'Belépés sikertelen.' }
+    if (!data.user || !data.session) return { error: tGlobal('errors.loginFailed') }
 
     const profile = await ensureProfile(data.user)
     setUser(profile)
@@ -265,8 +265,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       avatarFile?: File | null
       removeAvatar?: boolean
     }) => {
-      if (!user) return { error: 'Nincs bejelentkezve.' }
-      if (!isSupabaseConfigured) return { error: 'Supabase nincs beállítva.' }
+      if (!user) return { error: tGlobal('errors.notLoggedIn') }
+      if (!isSupabaseConfigured) return { error: tGlobal('errors.supabaseMissing') }
 
       const {
         data: { user: authUser },
@@ -300,7 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return {
             error:
               uploadError.message.includes('Bucket not found') || /avatar/i.test(uploadError.message)
-                ? 'A logó feltöltése sikertelen. Futtasd a supabase/migrations/007_profile_avatar.sql fájlt a Supabase SQL Editorban.'
+                ? tGlobal('errors.avatarUploadFailed')
                 : uploadError.message,
           }
         }
@@ -338,12 +338,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error || !row) {
         if (error?.message && /avatar_url|phone/i.test(error.message)) {
-          return {
-            error:
-              'A profil mentése sikertelen. Futtasd a supabase/migrations/007_profile_avatar.sql és 008_profile_phone.sql fájlokat a Supabase SQL Editorban.',
-          }
+          return { error: tGlobal('errors.profileSave') }
         }
-        return { error: error?.message ?? 'Mentés sikertelen.' }
+        return { error: error?.message ?? tGlobal('errors.profileSave') }
       }
 
       if (nextAvatarUrl !== undefined) {

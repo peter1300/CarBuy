@@ -3,11 +3,13 @@ import { Link, Navigate } from 'react-router-dom'
 import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { ALLOWED_AVATAR_TYPES, validateAvatarFile } from '../lib/avatar'
 
 export function EditProfilePage() {
   const { user, loading, updateProfile } = useAuth()
   const { refreshListings } = useListings()
+  const { t } = useLocale()
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
@@ -34,7 +36,7 @@ export function EditProfilePage() {
     return (
       <main className="page account-page">
         <div className="container">
-          <p className="state-message">Profil betöltése…</p>
+          <p className="state-message">{t('profile.loading')}</p>
         </div>
       </main>
     )
@@ -98,11 +100,11 @@ export function EditProfilePage() {
     <main className="page account-page">
       <div className="container account-page__narrow">
         <Link to="/profil" className="product__back">
-          ← Saját hirdetéseim
+          {t('editProfile.back')}
         </Link>
         <header className="account-page__header">
-          <h1>Profil szerkesztése</h1>
-          <p>Frissítsd a megjelenő nevedet, logódat és az elérhetőségedet.</p>
+          <h1>{t('editProfile.title')}</h1>
+          <p>{t('editProfile.sub')}</p>
         </header>
 
         <form className="account-card" onSubmit={handleSubmit}>
@@ -114,11 +116,8 @@ export function EditProfilePage() {
                 className="avatar-editor__preview"
               />
               <div className="avatar-editor__copy">
-                <strong>Profil logó</strong>
-                <p>
-                  Ha nincs logó, a monogram jelenik meg a hirdetéseiden. JPG, PNG, WebP vagy GIF ·
-                  max. 2 MB.
-                </p>
+                <strong>{t('editProfile.avatar')}</strong>
+                <p>{t('editProfile.avatarHint')}</p>
                 <div className="avatar-editor__actions">
                   <input
                     ref={fileRef}
@@ -132,7 +131,7 @@ export function EditProfilePage() {
                     className="btn btn--outline"
                     onClick={() => fileRef.current?.click()}
                   >
-                    Logó feltöltése
+                    {t('editProfile.avatar')}
                   </button>
                   {(user.avatarUrl || avatarFile) && !removeAvatar && (
                     <button
@@ -144,7 +143,7 @@ export function EditProfilePage() {
                         setSaved(false)
                       }}
                     >
-                      Logó törlése
+                      {t('editProfile.removeAvatar')}
                     </button>
                   )}
                 </div>
@@ -153,7 +152,7 @@ export function EditProfilePage() {
 
             {user.accountType === 'business' && (
               <div className="form-field">
-                <label htmlFor="edit-company">Cégnév</label>
+                <label htmlFor="edit-company">{t('editProfile.company')}</label>
                 <input
                   id="edit-company"
                   required
@@ -166,9 +165,7 @@ export function EditProfilePage() {
               </div>
             )}
             <div className="form-field">
-              <label htmlFor="edit-name">
-                {user.accountType === 'business' ? 'Kapcsolattartó neve' : 'Teljes név'}
-              </label>
+              <label htmlFor="edit-name">{t('editProfile.name')}</label>
               <input
                 id="edit-name"
                 required
@@ -180,7 +177,7 @@ export function EditProfilePage() {
               />
             </div>
             <div className="form-field">
-              <label htmlFor="edit-email">E-mail</label>
+              <label htmlFor="edit-email">{t('editProfile.email')}</label>
               <input
                 id="edit-email"
                 type="email"
@@ -193,7 +190,7 @@ export function EditProfilePage() {
               />
             </div>
             <div className="form-field">
-              <label htmlFor="edit-phone">Telefonszám</label>
+              <label htmlFor="edit-phone">{t('editProfile.phone')}</label>
               <input
                 id="edit-phone"
                 type="tel"
@@ -207,9 +204,9 @@ export function EditProfilePage() {
               />
             </div>
             {formError && <p className="form-error">{formError}</p>}
-            {saved && <p className="account-card__success">A profilod elmentve.</p>}
+            {saved && <p className="account-card__success">{t('editProfile.saved')}</p>}
             <button type="submit" className="btn btn--accent btn--lg" disabled={submitting}>
-              {submitting ? 'Mentés…' : 'Mentés'}
+              {submitting ? t('editProfile.saving') : t('editProfile.save')}
             </button>
           </div>
         </form>

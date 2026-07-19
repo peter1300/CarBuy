@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { useCall } from '../context/CallContext'
 import { useMessages } from '../context/MessagesContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { listingIdFromSlug, listingPath } from '../lib/listingUrl'
 import { rememberListingOpen } from '../lib/reels'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -25,6 +26,7 @@ export function ProductPage() {
   const { getListing, recordUniqueView, loading: listingsLoading } = useListings()
   const { startCall, call } = useCall()
   const { openOrCreateConversation } = useMessages()
+  const { t } = useLocale()
   const [messageBusy, setMessageBusy] = useState(false)
   const [messageError, setMessageError] = useState<string | null>(null)
   const [sellerContact, setSellerContact] = useState<SellerContact | null>(null)
@@ -77,7 +79,7 @@ export function ProductPage() {
     return (
       <main className="page product">
         <div className="container">
-          <p className="state-message">Hirdetés betöltése…</p>
+          <p className="state-message">{t('product.loading')}</p>
         </div>
       </main>
     )
@@ -87,10 +89,10 @@ export function ProductPage() {
     return (
       <main className="page not-found">
         <div className="container">
-          <h1>Hirdetés nem található</h1>
-          <p>Ez az autó már nem elérhető, vagy hibás a link.</p>
+          <h1>{t('product.notFound')}</h1>
+          <p>{t('product.notFoundText')}</p>
           <Link to="/" className="btn btn--primary">
-            Vissza a főoldalra
+            {t('product.home')}
           </Link>
         </div>
       </main>
@@ -109,12 +111,12 @@ export function ProductPage() {
   const displayTitle = formatListingTitle(listing)
 
   const hint = isOwnListing
-    ? 'Ez a te hirdetésed — hívást és üzenetet csak érdeklődők indíthatnak.'
+    ? t('product.hintOwn')
     : listing.seller.status === 'online'
-      ? 'Az eladó elérhető — indíts hang- vagy videóhívást közvetlenül a platformon.'
+      ? t('product.hintOnline')
       : listing.seller.status === 'busy'
-        ? 'Az eladó jelenleg elfoglalt. Próbáld újra, amint Online státuszra vált.'
-        : 'Az eladó Offline. Hívás csak Online státuszban indítható.'
+        ? t('product.hintBusy')
+        : t('product.hintOffline')
 
   const handleCall = (mode: CallMode) => {
     if (isOwnListing || listing.seller.status !== 'online') return
@@ -146,10 +148,10 @@ export function ProductPage() {
   return (
     <main className="page product">
       <div className="container">
-        <nav className="product-breadcrumb" aria-label="Morzsamenü">
-          <Link to="/">Főoldal</Link>
+        <nav className="product-breadcrumb" aria-label={t('product.breadcrumb')}>
+          <Link to="/">{t('product.homeCrumb')}</Link>
           <span aria-hidden="true">/</span>
-          <Link to="/szemelyauto">Személyautó</Link>
+          <Link to="/szemelyauto">{t('product.carsCrumb')}</Link>
           <span aria-hidden="true">/</span>
           <Link to={`/szemelyauto/${make}`}>{listing.make}</Link>
           <span aria-hidden="true">/</span>
@@ -160,7 +162,7 @@ export function ProductPage() {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Vissza a hirdetésekhez
+          {t('product.back')}
         </Link>
 
         <div className="product__layout">
@@ -178,9 +180,9 @@ export function ProductPage() {
                 />
               ) : (
                 <>
-                  <img src={listing.videoPoster} alt={`${displayTitle} videó`} />
+                  <img src={listing.videoPoster} alt={`${displayTitle}`} />
                   <div className="product-video__overlay">
-                    <span className="product-video__label">Videós bemutató</span>
+                    <span className="product-video__label">{t('product.videoLabel')}</span>
                   </div>
                 </>
               )}
@@ -202,7 +204,7 @@ export function ProductPage() {
             </div>
 
             <section className="specs-panel" aria-labelledby="specs-title">
-              <h2 id="specs-title">Műszaki adatok</h2>
+              <h2 id="specs-title">{t('product.specs')}</h2>
               <div className="specs-grid">
                 {listing.specs.map((spec) => (
                   <div className="spec-item" key={spec.label}>
@@ -222,11 +224,8 @@ export function ProductPage() {
 
             {listing.flawsVideoUrl && (
               <section className="flaws-panel" aria-labelledby="flaws-title">
-                <h2 id="flaws-title">Őszinte pillantás a hibákra</h2>
-                <p className="flaws-panel__lead">
-                  Mindegyik használtautón vannak esztétikai hibák, ettől ne ijedj meg! Te most egy
-                  őszinte eladót találtál.
-                </p>
+                <h2 id="flaws-title">{t('product.flawsTitle')}</h2>
+                <p className="flaws-panel__lead">{t('product.flawsText')}</p>
                 <div className="flaws-panel__video">
                   <video
                     src={listing.flawsVideoUrl}
@@ -261,18 +260,18 @@ export function ProductPage() {
                     <StatusBadge status={listing.seller.status} />
                   </div>
                   <p className="seller-card__type">
-                    {listing.seller.type === 'dealer' ? 'Kereskedő' : 'Magánszemély'}
+                    {listing.seller.type === 'dealer' ? t('product.dealer') : t('product.private')}
                   </p>
                 </div>
               </div>
 
               <div className="seller-card__stats">
                 <div className="seller-stat">
-                  <span>Értékelés</span>
+                  <span>{t('product.rating')}</span>
                   <strong>{listing.seller.rating.toFixed(1)}</strong>
                 </div>
                 <div className="seller-stat">
-                  <span>Válaszidő</span>
+                  <span>{t('product.responseTime')}</span>
                   <strong>{listing.seller.responseTime}</strong>
                 </div>
               </div>
@@ -288,7 +287,7 @@ export function ProductPage() {
                     <rect x="3" y="4" width="12" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" />
                     <circle cx="9" cy="8.5" r="2" stroke="currentColor" strokeWidth="1.5" />
                   </svg>
-                  Videóhívás
+                  {t('product.videoCall')}
                 </button>
                 <button
                   type="button"
@@ -304,7 +303,7 @@ export function ProductPage() {
                       strokeLinejoin="round"
                     />
                   </svg>
-                  Hanghívás
+                  {t('product.voiceCall')}
                 </button>
                 <button
                   type="button"
@@ -312,42 +311,41 @@ export function ProductPage() {
                   disabled={!canMessage}
                   onClick={() => void handleMessage()}
                 >
-                  {messageBusy ? 'Megnyitás…' : 'Üzenet küldése'}
+                  {messageBusy ? t('product.messaging') : t('product.message')}
                 </button>
                 {messageError && <p className="form-error">{messageError}</p>}
               </div>
 
               <div className="seller-card__contact">
-                <p className="seller-card__contact-label">Elérhetőség</p>
+                <p className="seller-card__contact-label">{t('product.contact')}</p>
                 {user ? (
                   contactLoading ? (
-                    <p className="seller-card__contact-locked">Betöltés…</p>
+                    <p className="seller-card__contact-locked">{t('common.loading')}</p>
                   ) : sellerContact ? (
                     <ul className="seller-card__contact-list">
                       <li>
-                        <span>E-mail</span>
+                        <span>{t('editProfile.email')}</span>
                         <a href={`mailto:${sellerContact.email}`}>{sellerContact.email}</a>
                       </li>
                       <li>
-                        <span>Telefon</span>
+                        <span>{t('editProfile.phone')}</span>
                         {sellerContact.phone ? (
                           <a href={`tel:${sellerContact.phone.replace(/\s+/g, '')}`}>
                             {sellerContact.phone}
                           </a>
                         ) : (
-                          <em>Nincs megadva</em>
+                          <em>{t('product.phoneMissing')}</em>
                         )}
                       </li>
                     </ul>
                   ) : (
                     <p className="seller-card__contact-locked">
-                      Az eladó elérhetősége jelenleg nem elérhető.
+                      {t('product.phoneMissing')}
                     </p>
                   )
                 ) : (
                   <p className="seller-card__contact-locked">
-                    <Link to="/belepes">Belépés</Link>,{' '}
-                    <Link to="/regisztracio">regisztráció</Link> szükséges a megtekintéshez
+                    {t('product.loginForContact')}
                   </p>
                 )}
               </div>

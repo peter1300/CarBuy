@@ -23,7 +23,7 @@ import {
   type AppLocale,
   type MarketCountry,
 } from './locales'
-import { translate } from './messages'
+import { setActiveLocale, translate } from './messages'
 import type { MessageKey } from './types'
 
 type LocaleContextValue = {
@@ -103,6 +103,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = locale
+    setActiveLocale(locale)
   }, [locale])
 
   const persistProfile = useCallback(

@@ -4,6 +4,7 @@ import { UserAvatar } from '../components/UserAvatar'
 import { DeleteListingDialog, type DeletionReason } from '../components/DeleteListingDialog'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
+import { useLocale } from '../i18n/LocaleContext'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import type { Listing } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
@@ -12,13 +13,14 @@ import { StatusBadge } from '../components/StatusBadge'
 export function ProfilePage() {
   const { user, loading: authLoading, logout } = useAuth()
   const { getListingsForUser, removeListing, loading: listingsLoading, error } = useListings()
+  const { t, locale } = useLocale()
   const [deletingListing, setDeletingListing] = useState<Listing | null>(null)
 
   if (authLoading) {
     return (
       <main className="page profile-page">
         <div className="container">
-          <p className="state-message">Profil betöltése…</p>
+          <p className="state-message">{t('profile.loading')}</p>
         </div>
       </main>
     )
@@ -46,7 +48,7 @@ export function ProfilePage() {
             />
             <div>
               <p className="profile-header__eyebrow">
-                {user.accountType === 'business' ? 'Vállalkozói fiók' : 'Magánszemély'}
+                {user.accountType === 'business' ? t('profile.business') : t('profile.personal')}
               </p>
               <h1 className="profile-header__name">{displayName}</h1>
               <p className="profile-header__email">{user.email}</p>
@@ -54,10 +56,10 @@ export function ProfilePage() {
           </div>
           <div className="profile-header__actions">
             <Link to="/hirdetes-feladas" className="btn btn--accent btn--lg">
-              Új hirdetés
+              {t('profile.newListing')}
             </Link>
             <button type="button" className="btn btn--ghost btn--lg" onClick={() => void logout()}>
-              Kilépés
+              {t('profile.logout')}
             </button>
           </div>
         </header>
@@ -65,36 +67,33 @@ export function ProfilePage() {
         <section className="profile-section" aria-labelledby="my-listings-title">
           <div className="profile-section__head">
             <div>
-              <h2 id="my-listings-title">Saját hirdetéseim</h2>
+              <h2 id="my-listings-title">{t('profile.myListings')}</h2>
               <p>
                 {listingsLoading
-                  ? 'Betöltés…'
+                  ? t('common.loading')
                   : listings.length === 0
-                    ? 'Még nincs feladott hirdetésed.'
-                    : `${listings.length} aktív videós hirdetés`}
+                    ? t('profile.empty')
+                    : t('profile.count', { count: listings.length })}
               </p>
             </div>
-            <div className="profile-stat" aria-label="Egyedi megtekintések összesen">
+            <div className="profile-stat" aria-label={t('profile.uniqueViews')}>
               <span className="profile-stat__value">
-                {totalUniqueViews.toLocaleString('hu-HU')}
+                {totalUniqueViews.toLocaleString(locale)}
               </span>
-              <span className="profile-stat__label">Egyedi megtekintés</span>
+              <span className="profile-stat__label">{t('profile.uniqueViews')}</span>
             </div>
           </div>
 
           {error && <p className="form-error">{error}</p>}
 
           {listingsLoading ? (
-            <p className="state-message">Hirdetések betöltése…</p>
+            <p className="state-message">{t('common.loading')}</p>
           ) : listings.length === 0 ? (
             <div className="profile-empty">
-              <h3>Itt jelennek meg a hirdetéseid</h3>
-              <p>
-                Amikor közzéteszel egy videós hirdetést, azonnal ebben a listában találod —
-                innen szerkesztheted a státuszodat és megnyithatod a termékoldalt.
-              </p>
+              <h3>{t('profile.empty')}</h3>
+              <p>{t('profile.emptyHint')}</p>
               <Link to="/hirdetes-feladas" className="btn btn--primary btn--lg">
-                Első hirdetés feladása
+                {t('profile.newListing')}
               </Link>
             </div>
           ) : (
@@ -134,19 +133,21 @@ export function ProfilePage() {
                             />
                             <circle cx="7" cy="7" r="1.6" stroke="currentColor" strokeWidth="1.2" />
                           </svg>
-                          {(listing.uniqueViews ?? 0).toLocaleString('hu-HU')} egyedi megtekintés
+                          {t('profile.views', {
+                            count: (listing.uniqueViews ?? 0).toLocaleString(locale),
+                          })}
                         </p>
                       </div>
                       <div className="profile-listing__actions">
                         <Link to={listingPath(listing)} className="btn btn--outline">
-                          Megnyitás
+                          {t('profile.open')}
                         </Link>
                         <button
                           type="button"
                           className="btn btn--ghost"
                           onClick={() => setDeletingListing(listing)}
                         >
-                          Törlés
+                          {t('profile.delete')}
                         </button>
                       </div>
                     </div>

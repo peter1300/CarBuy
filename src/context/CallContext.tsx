@@ -24,6 +24,7 @@ import {
 import type { Listing } from '../data/listings'
 import { formatListingTitle } from '../data/listings'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { tGlobal } from '../i18n/messages'
 
 type StartCallArgs = {
   listing: Listing
@@ -67,7 +68,7 @@ function toParticipant(listing: Listing): CallParticipant {
 async function waitUntilSubscribed(channel: RealtimeChannel): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
-      reject(new Error('Híváscsatorna időtúllépés.'))
+      reject(new Error(tGlobal('call.failed')))
     }, 10_000)
 
     void channel.subscribe((status) => {
@@ -77,7 +78,7 @@ async function waitUntilSubscribed(channel: RealtimeChannel): Promise<void> {
       }
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         window.clearTimeout(timeout)
-        reject(new Error('Hívásjelzés csatlakozás sikertelen.'))
+        reject(new Error(tGlobal('call.failed')))
       }
     })
   })
@@ -171,7 +172,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         listingId: current?.listingId ?? invite!.listingId,
         listingTitle: current?.listingTitle ?? invite!.listingTitle,
         mode: current?.mode ?? invite!.mode,
-        fromName: userRef.current?.name ?? 'Felhasználó',
+        fromName: userRef.current?.name ?? tGlobal('common.user'),
         fromUserId: userRef.current?.id,
         ownerId: invite?.ownerId,
         ...extra,
@@ -227,7 +228,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
               ? {
                   ...prev,
                   phase: 'failed',
-                  error: 'A peer kapcsolat megszakadt. Próbáld újra.',
+                  error: tGlobal('call.failed'),
                 }
               : prev,
           )
@@ -364,7 +365,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
               ? {
                   ...prev,
                   phase: 'failed',
-                  error: 'Nem sikerült felépíteni a videókapcsolatot.',
+                  error: tGlobal('call.failed'),
                 }
               : prev,
           )
@@ -483,31 +484,27 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const startCall = useCallback(
     async ({ listing, mode }: StartCallArgs) => {
       if (listing.seller.status !== 'online') {
-        showFailed(listing, mode, 'A hirdető jelenleg nem Online — hívás nem indítható.')
+        showFailed(listing, mode, tGlobal('product.hintOffline'))
         return
       }
 
       if (!user) {
-        showFailed(listing, mode, 'A híváshoz be kell jelentkezned.')
+        showFailed(listing, mode, tGlobal('errors.notLoggedIn'))
         return
       }
 
       if (listing.ownerId && listing.ownerId === user.id) {
-        showFailed(listing, mode, 'Saját hirdetésedet nem hívhatod fel.')
+        showFailed(listing, mode, tGlobal('product.hintOwn'))
         return
       }
 
       if (!listing.ownerId) {
-        showFailed(
-          listing,
-          mode,
-          'Ez demó hirdetés — nincs valódi hirdető, aki fogadhatná a hívást.',
-        )
+        showFailed(listing, mode, tGlobal('errors.generic'))
         return
       }
 
       if (!isSupabaseConfigured) {
-        showFailed(listing, mode, 'Supabase nincs beállítva — hívásjelzés nem elérhető.')
+        showFailed(listing, mode, tGlobal('errors.supabaseMissing'))
         return
       }
 
@@ -533,11 +530,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         localStreamRef.current = stream
         setLocalStream(stream)
       } catch {
-        showFailed(
-          listing,
-          mode,
-          'Kamera vagy mikrofon hozzáférés megtagadva. Engedélyezd a böngészőben.',
-        )
+        showFailed(listing, mode, tGlobal('call.failed'))
         return
       }
 
@@ -572,7 +565,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
             return {
               ...prev,
               phase: 'failed',
-              error: 'Nincs válasz. A hirdetőnek bejelentkezve a CarBuy oldalon kell lennie.',
+              error: tGlobal('call.failed'),
             }
           })
           window.setTimeout(() => setCall(null), 3200)
@@ -583,7 +576,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         showFailed(
           listing,
           mode,
-          err instanceof Error ? err.message : 'Hívásjelzés sikertelen.',
+          err instanceof Error ? err.message : tGlobal('call.failed'),
         )
       }
     },
@@ -618,7 +611,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
           listingId: invite.listingId,
           listingTitle: invite.listingTitle,
           mode: invite.mode,
-          fromName: userRef.current?.name ?? 'Hirdető',
+          fromName: userRef.current?.name ?? tGlobal('common.user'),
           fromUserId: userRef.current?.id,
           ownerId: invite.ownerId,
         })
@@ -646,7 +639,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
           ? {
               ...prev,
               phase: 'failed',
-              error: 'Nem sikerült elindítani a kamerát / mikrofont.',
+              error: tGlobal('call.failed'),
             }
           : prev,
       )
@@ -663,7 +656,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         listingId: invite.listingId,
         listingTitle: invite.listingTitle,
         mode: invite.mode,
-        fromName: userRef.current?.name ?? 'Hirdető',
+        fromName: userRef.current?.name ?? tGlobal('common.user'),
         fromUserId: userRef.current?.id,
         ownerId: invite.ownerId,
       })

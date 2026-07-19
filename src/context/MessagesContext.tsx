@@ -15,6 +15,7 @@ import { formatListingTitle } from '../data/listings'
 import { compressVideoForUpload } from '../lib/compressVideo'
 import type { ConversationRow, MessageRow, ProfileRow } from '../lib/database.types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { tGlobal } from '../i18n/messages'
 
 /** Max raw attachment size before compression */
 export const MAX_MESSAGE_VIDEO_BYTES = 150 * 1024 * 1024
@@ -102,10 +103,10 @@ async function mapMessage(row: MessageRow): Promise<ChatMessage> {
 }
 
 function previewFromMessage(row: Pick<MessageRow, 'body' | 'video_path'> | null | undefined): string {
-  if (!row) return 'Új beszélgetés'
+  if (!row) return tGlobal('messages.newChat')
   if (row.body?.trim()) return row.body.trim()
-  if (row.video_path) return 'Videó csatolva'
-  return 'Üzenet'
+  if (row.video_path) return tGlobal('messages.videoAttached')
+  return tGlobal('messages.placeholder')
 }
 
 function lastReadAt(row: ConversationRow, userId: string): string {
@@ -222,7 +223,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       const otherName =
         other?.account_type === 'business' && other.company_name
           ? other.company_name
-          : (other?.name ?? 'Felhasználó')
+          : (other?.name ?? tGlobal('common.user'))
 
       return {
         id: row.id,
@@ -233,7 +234,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
               model: listing.model,
               title: listing.title,
             })
-          : 'Hirdetés',
+          : tGlobal('messages.newChat'),
         listingPoster: listing?.video_poster ?? '',
         listingMake: listing?.make ?? '',
         listingModel: listing?.model ?? '',
@@ -402,16 +403,16 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   const openOrCreateConversation = useCallback(
     async (listing: Listing) => {
       if (!isSupabaseConfigured) {
-        return { error: 'Supabase nincs beállítva.' }
+        return { error: tGlobal('errors.supabaseMissing') }
       }
       if (!user) {
-        return { error: 'A üzenetküldéshez be kell jelentkezned.' }
+        return { error: tGlobal('errors.notLoggedIn') }
       }
       if (!listing.ownerId) {
-        return { error: 'Demó hirdetésre nem küldhető üzenet.' }
+        return { error: tGlobal('errors.generic') }
       }
       if (listing.ownerId === user.id) {
-        return { error: 'Saját hirdetésedre nem indíthatsz beszélgetést.' }
+        return { error: tGlobal('product.hintOwn') }
       }
 
       const { data: existing, error: existingError } = await supabase
@@ -438,7 +439,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (createError || !created) {
-        return { error: createError?.message ?? 'Beszélgetés létrehozása sikertelen.' }
+        return { error: createError?.message ?? tGlobal('errors.generic') }
       }
 
       await refreshConversations()
@@ -450,22 +451,22 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   const sendMessage = useCallback(
     async (input: { conversationId: string; text?: string; videoFile?: File | null }) => {
       if (!isSupabaseConfigured || !user) {
-        return { error: 'Nincs bejelentkezve.' }
+        return { error: tGlobal('errors.notLoggedIn') }
       }
 
       const text = input.text?.trim() ?? ''
       const file = input.videoFile ?? null
 
       if (!text && !file) {
-        return { error: 'Írj üzenetet vagy csatolj videót.' }
+        return { error: tGlobal('errors.generic') }
       }
 
       if (file) {
         if (!ALLOWED_MESSAGE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_MESSAGE_VIDEO_TYPES)[number]) && !file.type.startsWith('video/')) {
-          return { error: 'Csak videófájl csatolható.' }
+          return { error: tGlobal('messages.videoType') }
         }
         if (file.size > MAX_MESSAGE_VIDEO_BYTES) {
-          return { error: 'A videó maximum 150 MB lehet.' }
+          return { error: tGlobal('messages.videoSize') }
         }
       }
 
@@ -476,10 +477,10 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         try {
           uploadFile = await compressVideoForUpload(file)
         } catch {
-          return { error: 'A videó tömörítése sikertelen.' }
+          return { error: tGlobal('errors.generic') }
         }
         if (uploadFile.size > MAX_MESSAGE_VIDEO_UPLOAD_BYTES) {
-          return { error: 'A tömörített videó még mindig túl nagy (max. 40 MB). Rövidítsd a felvételt.' }
+          return { error: tGlobal('messages.videoSize') }
         }
         const path = `${user.id}/${input.conversationId}/${crypto.randomUUID()}.mp4`
         const { error: uploadError } = await supabase.storage
@@ -491,7 +492,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
           })
 
         if (uploadError) {
-          return { error: uploadError.message || 'Videó feltöltése sikertelen.' }
+          return { error: uploadError.message || tGlobal('errors.generic') }
         }
         videoPath = path
       }
@@ -508,7 +509,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (error || !data) {
-        return { error: error?.message ?? 'Üzenet küldése sikertelen.' }
+        return { error: error?.message ?? tGlobal('errors.generic') }
       }
 
       const mapped = await mapMessage(data as MessageRow)
