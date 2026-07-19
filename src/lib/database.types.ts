@@ -288,6 +288,21 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -312,6 +327,18 @@ export type Database = {
           sold_elsewhere: number
           not_sold: number
           carbuy_conversion_rate: number
+        }[]
+      }
+      is_admin: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      get_daily_activity_stats: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+          registrations: number
+          listings_created: number
         }[]
       }
     }
