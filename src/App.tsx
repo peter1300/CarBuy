@@ -6,6 +6,7 @@ import { MessagesProvider } from './context/MessagesContext'
 import { FavoritesProvider } from './context/FavoritesContext'
 import { LocaleProvider } from './i18n/LocaleContext'
 import { Header } from './components/Header'
+import { MobileBottomNav } from './components/MobileBottomNav'
 import { Footer } from './components/Footer'
 import { CallOverlay } from './components/CallOverlay'
 import { LandingPage } from './pages/LandingPage'
@@ -57,6 +58,7 @@ export default function App() {
                       <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                     <Footer />
+                    <MobileBottomNav />
                     <CallOverlay />
                   </div>
                 </BrowserRouter>

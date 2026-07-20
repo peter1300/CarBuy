@@ -16,6 +16,10 @@ export const hu: Messages = {
   'nav.myListings': 'Saját hirdetéseim',
   'nav.logout': 'Kilépés',
   'nav.language': 'Nyelv',
+  'nav.home': 'Kezdőlap',
+  'nav.profile': 'Profil',
+  'nav.newListingShort': 'Új',
+  'nav.bottomAria': 'Alsó menü',
 
   // —— Footer ——
   'footer.tagline': 'Videós autóhirdetések. Gyorsabb döntés.',

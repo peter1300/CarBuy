@@ -16,6 +16,10 @@ export const de: Messages = {
   'nav.myListings': 'Meine Anzeigen',
   'nav.logout': 'Abmelden',
   'nav.language': 'Sprache',
+  'nav.home': 'Start',
+  'nav.profile': 'Profil',
+  'nav.newListingShort': 'Neu',
+  'nav.bottomAria': 'Untere Navigation',
 
   // —— Footer ——
   'footer.tagline': 'Video-Autoanzeigen. Schnellere Entscheidungen.',

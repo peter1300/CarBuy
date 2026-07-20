@@ -16,6 +16,10 @@ export const en: Messages = {
   'nav.myListings': 'My listings',
   'nav.logout': 'Log out',
   'nav.language': 'Language',
+  'nav.home': 'Home',
+  'nav.profile': 'Profile',
+  'nav.newListingShort': 'New',
+  'nav.bottomAria': 'Bottom navigation',
 
   // —— Footer ——
   'footer.tagline': 'Video car listings. Faster decisions.',

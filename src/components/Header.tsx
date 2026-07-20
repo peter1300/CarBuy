@@ -209,16 +209,16 @@ export function Header() {
                   </div>
                 )}
               </div>
-              <Link to="/hirdetes-feladas" className="btn btn--primary">
+              <Link to="/hirdetes-feladas" className="btn btn--primary show-from-md">
                 {t('nav.newListing')}
               </Link>
             </>
           ) : (
             <>
-              <Link to="/belepes" className="btn btn--ghost hide-mobile">
+              <Link to="/belepes" className="btn btn--ghost show-from-md">
                 {t('nav.login')}
               </Link>
-              <Link to="/regisztracio" className="btn btn--primary">
+              <Link to="/regisztracio" className="btn btn--primary show-from-md">
                 {t('nav.register')}
               </Link>
             </>

@@ -16,6 +16,10 @@ export const es: Messages = {
   'nav.myListings': 'Mis anuncios',
   'nav.logout': 'Salir',
   'nav.language': 'Idioma',
+  'nav.home': 'Inicio',
+  'nav.profile': 'Perfil',
+  'nav.newListingShort': 'Nuevo',
+  'nav.bottomAria': 'Navegación inferior',
 
   // —— Footer ——
   'footer.tagline': 'Anuncios de coches en vídeo. Decisiones más rápidas.',
