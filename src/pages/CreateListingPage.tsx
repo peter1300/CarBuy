@@ -56,6 +56,7 @@ export function CreateListingPage() {
   const [flawsVideoFile, setFlawsVideoFile] = useState<File | null>(null)
   const [flawsPreviewUrl, setFlawsPreviewUrl] = useState<string | null>(null)
   const [flawsError, setFlawsError] = useState<string | null>(null)
+  const [noFlawsDeclared, setNoFlawsDeclared] = useState(false)
   const flawsInputRef = useRef<HTMLInputElement>(null)
   const [recorderTarget, setRecorderTarget] = useState<'main' | 'flaws' | null>(null)
   const [title, setTitle] = useState('')
@@ -135,8 +136,8 @@ export function CreateListingPage() {
       setStep(1)
       return
     }
-    if (!flawsVideoFile) {
-      setPublishError(t('create.errorNeedFlaws'))
+    if (!flawsVideoFile && !noFlawsDeclared) {
+      setPublishError(t('create.errorNeedFlawsOrDeclare'))
       setStep(2)
       return
     }
@@ -160,7 +161,7 @@ export function CreateListingPage() {
           country: listingCountry,
           description,
           videoFile,
-          flawsVideoFile,
+          flawsVideoFile: flawsVideoFile ?? undefined,
           status: goOnline ? 'online' : 'offline',
         },
         { onStatus: setPublishStatus },
@@ -198,6 +199,7 @@ export function CreateListingPage() {
       setFlawsVideoFile(null)
       return
     }
+    setNoFlawsDeclared(false)
     if (!isAllowedListingVideo(file)) {
       setFlawsError(t('create.videoTypeError'))
       setFlawsVideoFile(null)
@@ -210,6 +212,14 @@ export function CreateListingPage() {
     }
     setFlawsVideoFile(file)
   }
+
+  const handleDeclareNoFlaws = () => {
+    setFlawsError(null)
+    setFlawsVideoFile(null)
+    setNoFlawsDeclared(true)
+  }
+
+  const canProceedFromFlawsStep = Boolean(flawsVideoFile || noFlawsDeclared)
 
   const recorderSupported = canUseInAppRecorder()
 
@@ -369,6 +379,7 @@ export function CreateListingPage() {
               <div className="create-step">
                 <h2>{t('create.flawsTitle')}</h2>
                 <p className="create-step__lead">{STEPS[1].hint}</p>
+                <p className="create-step__note">{t('create.flawsOptional')}</p>
 
                 <input
                   ref={flawsInputRef}
@@ -378,7 +389,9 @@ export function CreateListingPage() {
                   onChange={(e) => onPickFlawsVideo(e.target.files?.[0] ?? null)}
                 />
 
-                <div className={`video-dropzone${flawsVideoFile ? ' is-filled' : ''}`}>
+                <div
+                  className={`video-dropzone${flawsVideoFile ? ' is-filled' : ''}${noFlawsDeclared ? ' is-no-flaws' : ''}`}
+                >
                   {flawsVideoFile && flawsPreviewUrl ? (
                     <>
                       <video
@@ -391,6 +404,23 @@ export function CreateListingPage() {
                       />
                       <strong>{flawsVideoFile.name}</strong>
                       <span>{(flawsVideoFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+                    </>
+                  ) : noFlawsDeclared ? (
+                    <>
+                      <span className="video-dropzone__check" aria-hidden="true">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                          <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="1.8" />
+                          <path
+                            d="M13 20.5l4.5 4.5 9.5-9.5"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                      <strong>{t('create.noFlawsSelected')}</strong>
+                      <span>{t('create.noFlawsSelectedHint')}</span>
                     </>
                   ) : (
                     <>
@@ -418,6 +448,7 @@ export function CreateListingPage() {
                     type="button"
                     className="btn btn--outline"
                     onClick={() => flawsInputRef.current?.click()}
+                    disabled={noFlawsDeclared}
                   >
                     {t('create.fromGallery')}
                   </button>
@@ -426,11 +457,25 @@ export function CreateListingPage() {
                       type="button"
                       className="btn btn--accent"
                       onClick={() => setRecorderTarget('flaws')}
+                      disabled={noFlawsDeclared}
                     >
                       {t('create.record')}
                     </button>
                   )}
                 </div>
+
+                <div className="create-flaws-or" aria-hidden="true">
+                  <span>{t('create.flawsOr')}</span>
+                </div>
+
+                <button
+                  type="button"
+                  className={`btn btn--outline create-no-flaws-btn${noFlawsDeclared ? ' is-active' : ''}`}
+                  onClick={handleDeclareNoFlaws}
+                  disabled={Boolean(flawsVideoFile)}
+                >
+                  {t('create.noFlawsBtn')}
+                </button>
                 {flawsError && <p className="form-error">{flawsError}</p>}
               </div>
             )}
@@ -697,7 +742,7 @@ export function CreateListingPage() {
                   className="btn btn--accent btn--lg"
                   disabled={
                     (step === 1 && !videoFile) ||
-                    (step === 2 && !flawsVideoFile) ||
+                    (step === 2 && !canProceedFromFlawsStep) ||
                     publishing
                   }
                 >

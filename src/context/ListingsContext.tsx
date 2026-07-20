@@ -37,7 +37,7 @@ export type UserListingInput = {
   country: MarketCountry
   description: string
   videoFile: File
-  flawsVideoFile: File
+  flawsVideoFile?: File | null
   status: SellerStatus
 }
 
@@ -175,12 +175,14 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         throw new Error(tGlobal('create.videoSizeError'))
       }
 
-      const rawFlaws = input.flawsVideoFile
-      if (!isAllowedListingVideo(rawFlaws)) {
-        throw new Error(tGlobal('create.videoTypeError'))
-      }
-      if (rawFlaws.size > MAX_LISTING_VIDEO_BYTES) {
-        throw new Error(tGlobal('create.videoSizeError'))
+      const rawFlaws = input.flawsVideoFile ?? null
+      if (rawFlaws) {
+        if (!isAllowedListingVideo(rawFlaws)) {
+          throw new Error(tGlobal('create.videoTypeError'))
+        }
+        if (rawFlaws.size > MAX_LISTING_VIDEO_BYTES) {
+          throw new Error(tGlobal('create.videoSizeError'))
+        }
       }
 
       options?.onStatus?.(tGlobal('create.compressing'))
@@ -197,24 +199,26 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         },
       })
 
-      options?.onStatus?.(tGlobal('create.compressing'))
-      const flawsFile = await compressVideoForUpload(rawFlaws, {
-        onProgress: ({ phase, ratio }) => {
-          if (phase === 'loading') {
-            options?.onStatus?.(tGlobal('create.compressing'))
-            return
-          }
-          options?.onStatus?.(
-            `${tGlobal('create.compressing')} ${Math.round(ratio * 100)}%`,
-          )
-        },
-      })
+      let flawsFile: File | null = null
+      if (rawFlaws) {
+        options?.onStatus?.(tGlobal('create.compressing'))
+        flawsFile = await compressVideoForUpload(rawFlaws, {
+          onProgress: ({ phase, ratio }) => {
+            if (phase === 'loading') {
+              options?.onStatus?.(tGlobal('create.compressing'))
+              return
+            }
+            options?.onStatus?.(
+              `${tGlobal('create.compressing')} ${Math.round(ratio * 100)}%`,
+            )
+          },
+        })
+      }
 
       options?.onStatus?.(tGlobal('create.publishing'))
       const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)
 
       const videoPath = `${ownerId}/${id}/video.mp4`
-      const flawsPath = `${ownerId}/${id}/flaws.mp4`
       const posterPath = `${ownerId}/${id}/poster.jpg`
 
       options?.onStatus?.(tGlobal('create.publishing'))
@@ -229,15 +233,23 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         throw new Error(videoUploadError.message || tGlobal('errors.generic'))
       }
 
-      const { error: flawsUploadError } = await supabase.storage
-        .from('listing-videos')
-        .upload(flawsPath, flawsFile, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'video/mp4',
-        })
-      if (flawsUploadError) {
-        throw new Error(flawsUploadError.message || tGlobal('errors.generic'))
+      let flawsVideoUrl: string | null = null
+      if (flawsFile) {
+        const flawsPath = `${ownerId}/${id}/flaws.mp4`
+        const { error: flawsUploadError } = await supabase.storage
+          .from('listing-videos')
+          .upload(flawsPath, flawsFile, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: 'video/mp4',
+          })
+        if (flawsUploadError) {
+          throw new Error(flawsUploadError.message || tGlobal('errors.generic'))
+        }
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('listing-videos').getPublicUrl(flawsPath)
+        flawsVideoUrl = publicUrl
       }
 
       const { error: posterUploadError } = await supabase.storage
@@ -255,9 +267,6 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       const {
         data: { publicUrl: videoUrl },
       } = supabase.storage.from('listing-videos').getPublicUrl(videoPath)
-      const {
-        data: { publicUrl: flawsVideoUrl },
-      } = supabase.storage.from('listing-videos').getPublicUrl(flawsPath)
       const {
         data: { publicUrl: posterUrl },
       } = supabase.storage.from('listing-videos').getPublicUrl(posterPath)

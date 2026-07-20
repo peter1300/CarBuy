@@ -249,20 +249,24 @@ export function ProductPage() {
               </div>
             </section>
 
-            {listing.flawsVideoUrl && (
-              <section className="flaws-panel" aria-labelledby="flaws-title">
-                <h2 id="flaws-title">{t('product.flawsTitle')}</h2>
-                <p className="flaws-panel__lead">{t('product.flawsText')}</p>
-                <div className="flaws-panel__video">
-                  <video
-                    src={listing.flawsVideoUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
-                  />
-                </div>
-              </section>
-            )}
+            <section className="flaws-panel" aria-labelledby="flaws-title">
+              <h2 id="flaws-title">{t('product.flawsTitle')}</h2>
+              {listing.flawsVideoUrl ? (
+                <>
+                  <p className="flaws-panel__lead">{t('product.flawsText')}</p>
+                  <div className="flaws-panel__video">
+                    <video
+                      src={listing.flawsVideoUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                </>
+              ) : (
+                <p className="flaws-panel__empty">{t('product.flawsNoVideo')}</p>
+              )}
+            </section>
           </div>
 
           <aside className="product__aside">

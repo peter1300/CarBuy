@@ -270,6 +270,14 @@ export const en: Messages = {
   'create.flawsWhy': 'Why bother?',
   'create.flawsWhyText':
     'Buyers see you are not hiding anything. That often builds more trust than a perfect-looking demo.',
+  'create.flawsOptional':
+    'Optional — upload a flaws video or declare that no flaws were found.',
+  'create.noFlawsBtn': 'No flaws found on the car',
+  'create.noFlawsSelected': 'No flaws declared',
+  'create.noFlawsSelectedHint': 'Buyers will see that no separate flaws video was recorded.',
+  'create.flawsOr': 'or',
+  'create.errorNeedFlawsOrDeclare':
+    'Upload a flaws video or confirm there are no flaws on the car.',
   'create.detailsTitle': 'Car details',
   'create.detailsLead':
     'The more accurate, the fewer wasted questions — more time for live demos.',
@@ -780,6 +788,8 @@ export const en: Messages = {
   'messages.videoType': 'Only video files can be attached.',
   'product.carsCrumb': 'Cars',
   'product.flawsText': 'Every used car has cosmetic flaws — do not panic! You found an honest seller.',
+  'product.flawsNoVideo':
+    'The seller did not record a separate flaws video. This is a used car — minor cosmetic flaws are common and normal.',
   'product.homeCrumb': 'Home',
   'product.messaging': 'Opening…',
   'product.voiceCall': 'Voice call',

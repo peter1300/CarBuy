@@ -270,6 +270,14 @@ export const es: Messages = {
   'create.flawsWhy': '¿Por qué merece la pena?',
   'create.flawsWhyText':
     'El comprador ve que no ocultas nada. Eso a menudo genera más confianza que una demo perfecta.',
+  'create.flawsOptional':
+    'Opcional — sube un vídeo de defectos o indica que no hay defectos detectados.',
+  'create.noFlawsBtn': 'No hay defectos detectados en el coche',
+  'create.noFlawsSelected': 'Sin defectos declarados',
+  'create.noFlawsSelectedHint': 'Los compradores verán que no se grabó un vídeo de defectos aparte.',
+  'create.flawsOr': 'o',
+  'create.errorNeedFlawsOrDeclare':
+    'Sube un vídeo de defectos o confirma que no hay defectos detectados en el coche.',
   'create.detailsTitle': 'Datos del coche',
   'create.detailsLead':
     'Cuanto más preciso, menos preguntas inútiles — más tiempo para la demo en vivo.',
@@ -782,6 +790,8 @@ export const es: Messages = {
   'product.carsCrumb': 'Coches',
   'product.flawsText':
     'Todo coche usado tiene defectos estéticos — ¡no te asustes! Has encontrado un vendedor honesto.',
+  'product.flawsNoVideo':
+    'El vendedor no grabó un vídeo de defectos aparte. Es un coche usado — pequeños defectos estéticos son normales.',
   'product.homeCrumb': 'Inicio',
   'product.messaging': 'Abriendo…',
   'product.voiceCall': 'Llamada de voz',

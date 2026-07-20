@@ -270,6 +270,14 @@ export const de: Messages = {
   'create.flawsWhy': 'Warum lohnt es sich?',
   'create.flawsWhyText':
     'Der Käufer sieht, dass du nichts versteckst. Das baut oft mehr Vertrauen auf als eine perfekt wirkende Demo.',
+  'create.flawsOptional':
+    'Optional — lade ein Mängelvideo hoch oder gib an, dass keine Mängel festgestellt wurden.',
+  'create.noFlawsBtn': 'Keine Mängel am Auto festgestellt',
+  'create.noFlawsSelected': 'Keine Mängel angegeben',
+  'create.noFlawsSelectedHint': 'Käufer sehen, dass kein separates Mängelvideo aufgenommen wurde.',
+  'create.flawsOr': 'oder',
+  'create.errorNeedFlawsOrDeclare':
+    'Lade ein Mängelvideo hoch oder bestätige, dass keine Mängel am Auto festgestellt wurden.',
   'create.detailsTitle': 'Autodaten',
   'create.detailsLead':
     'Je genauer, desto weniger unnötige Fragen — mehr Zeit für Live-Demos.',
@@ -783,6 +791,8 @@ export const de: Messages = {
   'product.carsCrumb': 'PKW',
   'product.flawsText':
     'Jedes Gebrauchtwagen hat kosmetische Mängel — keine Panik! Du hast einen ehrlichen Verkäufer gefunden.',
+  'product.flawsNoVideo':
+    'Der Verkäufer hat kein separates Mängelvideo aufgenommen. Es handelt sich um ein Gebrauchtfahrzeug — kleinere kosmetische Mängel sind normal.',
   'product.homeCrumb': 'Startseite',
   'product.messaging': 'Öffnen…',
   'product.voiceCall': 'Sprachanruf',

@@ -274,6 +274,14 @@ export const hu: Messages = {
   'create.flawsWhy': 'Miért érdemes?',
   'create.flawsWhyText':
     'A vevő látja, hogy nem takargatsz semmit. Ez gyakran erősebb bizalomépítő, mint egy tökéletesnek tűnő bemutató.',
+  'create.flawsOptional':
+    'Opcionális — feltöltheted a hibák videóját, vagy jelezheted, ha nincs észlelt hiba.',
+  'create.noFlawsBtn': 'Nincs észlelt hiba az autón',
+  'create.noFlawsSelected': 'Nincs észlelt hiba',
+  'create.noFlawsSelectedHint': 'A hirdetésben jelezve lesz, hogy nem rögzítettél hibavideót.',
+  'create.flawsOr': 'vagy',
+  'create.errorNeedFlawsOrDeclare':
+    'Tölts fel hibavideót, vagy jelöld, ha nincs észlelt hiba az autón.',
   'create.detailsTitle': 'Autó adatai',
   'create.detailsLead':
     'Minél pontosabb, annál kevesebb felesleges kérdés — több idő élő bemutatóra.',
@@ -787,6 +795,8 @@ export const hu: Messages = {
   'product.carsCrumb': 'Személyautó',
   'product.flawsText':
     'Mindegyik használtautón vannak esztétikai hibák, ettől ne ijedj meg! Te most egy őszinte eladót találtál.',
+  'product.flawsNoVideo':
+    'Az eladó nem rögzített külön hibavideót. Használt autóról van szó — apróbb esztétikai hibák előfordulhatnak, ez normális.',
   'product.homeCrumb': 'Főoldal',
   'product.messaging': 'Megnyitás…',
   'product.voiceCall': 'Hanghívás',
