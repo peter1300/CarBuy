@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
@@ -43,12 +43,15 @@ export function ReelsPage() {
   const [statsVersion, setStatsVersion] = useState(0)
   const [statsMap, setStatsMap] = useState(() => new Map<string, ReelStats>())
   const [activeIndex, setActiveIndex] = useState(0)
-  const [userInteracted, setUserInteracted] = useState(false)
+  /** Prefer muted until the user explicitly unmutes (browser autoplay-safe). */
+  const [isMuted, setIsMuted] = useState(true)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const sessionRef = useRef<SessionWatch | null>(null)
   const lastTickRef = useRef(0)
   const listingsRef = useRef<Listing[]>([])
+  const activeIndexRef = useRef(0)
+  const isMutedRef = useRef(true)
 
   useEffect(() => {
     let cancelled = false
@@ -72,29 +75,55 @@ export function ReelsPage() {
   }, [listings, statsMap, statsVersion, favoriteIds])
 
   listingsRef.current = feed
+  activeIndexRef.current = activeIndex
+  isMutedRef.current = isMuted
+
+  const stopAllExcept = useCallback((keepIndex: number) => {
+    videoRefs.current.forEach((video, index) => {
+      if (!video || index === keepIndex) return
+      video.pause()
+      video.muted = true
+      try {
+        video.currentTime = 0
+      } catch {
+        // ignore seek errors on unloaded media
+      }
+    })
+  }, [])
+
+  const playActive = useCallback(async () => {
+    const index = activeIndexRef.current
+    const video = videoRefs.current[index]
+    if (!video) return
+
+    stopAllExcept(index)
+    video.muted = isMutedRef.current
+
+    try {
+      await video.play()
+    } catch {
+      // Autoplay may still fail if not muted — force mute and retry once.
+      if (!video.muted) {
+        video.muted = true
+        setIsMuted(true)
+        try {
+          await video.play()
+        } catch {
+          // leave paused; user tap / unmute will start it
+        }
+      }
+    }
+  }, [stopAllExcept])
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
-
-    const handleInteraction = () => {
-      setUserInteracted(true)
-      const video = videoRefs.current[activeIndex]
-      if (video) {
-        video.muted = false
-        void video.play().catch(() => undefined)
-      }
-    }
-
-    const scroller = scrollerRef.current
-    document.addEventListener('click', handleInteraction, { once: true })
-    document.addEventListener('touchstart', handleInteraction, { once: true })
-    scroller?.addEventListener('scroll', handleInteraction, { once: true, passive: true })
-
     return () => {
       document.body.classList.remove('reels-mode')
-      document.removeEventListener('click', handleInteraction)
-      document.removeEventListener('touchstart', handleInteraction)
-      scroller?.removeEventListener('scroll', handleInteraction)
+      videoRefs.current.forEach((video) => {
+        if (!video) return
+        video.pause()
+        video.muted = true
+      })
       const session = sessionRef.current
       if (session) {
         const listing = listingsRef.current.find((l) => l.id === session.listingId)
@@ -102,7 +131,7 @@ export function ReelsPage() {
         sessionRef.current = null
       }
     }
-  }, [activeIndex])
+  }, [])
 
   useEffect(() => {
     const root = scrollerRef.current
@@ -128,7 +157,6 @@ export function ReelsPage() {
   }, [feed.length])
 
   useEffect(() => {
-    // Close previous session
     const prev = sessionRef.current
     if (prev) {
       const listing = feed.find((l) => l.id === prev.listingId)
@@ -136,18 +164,8 @@ export function ReelsPage() {
       sessionRef.current = null
     }
 
-    videoRefs.current.forEach((video, index) => {
-      if (!video) return
-      if (index === activeIndex) {
-        if (userInteracted) {
-          video.muted = false
-        }
-        void video.play().catch(() => undefined)
-      } else {
-        video.pause()
-        video.currentTime = 0
-      }
-    })
+    stopAllExcept(activeIndex)
+    void playActive()
 
     const active = feed[activeIndex]
     if (active) {
@@ -159,7 +177,15 @@ export function ReelsPage() {
       }
       lastTickRef.current = 0
     }
-  }, [activeIndex, feed, userInteracted])
+  }, [activeIndex, feed, playActive, stopAllExcept])
+
+  useEffect(() => {
+    const video = videoRefs.current[activeIndex]
+    if (!video) return
+    video.muted = isMuted
+    if (!video.paused) return
+    void playActive()
+  }, [isMuted, activeIndex, playActive])
 
   const onTimeUpdate = (listingId: string, video: HTMLVideoElement) => {
     const session = sessionRef.current
@@ -175,6 +201,17 @@ export function ReelsPage() {
 
     if (durationMs > 0 && session.watchMs / durationMs >= 0.9) {
       session.completed = true
+    }
+  }
+
+  const toggleMute = (index: number) => {
+    const video = videoRefs.current[index]
+    if (!video) return
+    const nextMuted = !isMuted
+    setIsMuted(nextMuted)
+    video.muted = nextMuted
+    if (index === activeIndex) {
+      void video.play().catch(() => undefined)
     }
   }
 
@@ -213,6 +250,7 @@ export function ReelsPage() {
       <div className="reels-scroller" ref={scrollerRef}>
         {feed.map((listing, index) => {
           const title = formatListingTitle(listing)
+          const isActive = index === activeIndex
           return (
             <section
               key={listing.id}
@@ -228,16 +266,23 @@ export function ReelsPage() {
                 src={listing.videoUrl}
                 poster={listing.videoPoster}
                 playsInline
-                muted={!userInteracted}
+                muted={isMuted || !isActive}
                 loop
-                autoPlay={index === activeIndex}
                 preload={Math.abs(index - activeIndex) <= 1 ? 'auto' : 'metadata'}
-                onClick={(e) => {
-                  const video = e.currentTarget
+                onLoadedData={() => {
+                  if (index === activeIndexRef.current) void playActive()
+                }}
+                onClick={() => {
+                  const video = videoRefs.current[index]
+                  if (!video) return
+                  if (index !== activeIndexRef.current) {
+                    setActiveIndex(index)
+                    return
+                  }
                   if (video.paused) {
-                    setUserInteracted(true)
-                    video.muted = false
-                    void video.play().catch(() => undefined)
+                    void playActive()
+                  } else {
+                    video.pause()
                   }
                 }}
                 onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
@@ -279,17 +324,10 @@ export function ReelsPage() {
                   <button
                     type="button"
                     className="btn btn--outline btn--lg"
-                    onClick={() => {
-                      const video = videoRefs.current[index]
-                      if (!video) return
-                      video.muted = !video.muted
-                      setUserInteracted(true)
-                      if (!video.muted) void video.play().catch(() => undefined)
-                    }}
+                    onClick={() => toggleMute(index)}
+                    aria-pressed={!isMuted && isActive}
                   >
-                    {userInteracted && !videoRefs.current[index]?.muted
-                      ? t('reels.mute')
-                      : t('reels.unmute')}
+                    {isMuted || !isActive ? t('reels.unmute') : t('reels.mute')}
                   </button>
                 </div>
               </div>
