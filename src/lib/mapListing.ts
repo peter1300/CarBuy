@@ -51,5 +51,6 @@ export function mapListingRow(row: Partial<ListingRow> & Pick<ListingRow, 'id'>)
     ownerId: row.owner_id ?? undefined,
     createdAt: row.created_at,
     uniqueViews: row.unique_views,
+    processingStatus: row.processing_status ?? 'ready',
   }
 }

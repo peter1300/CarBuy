@@ -4,7 +4,7 @@ import { ListingCard } from '../components/ListingCard'
 import { SearchPanel } from '../components/SearchPanel'
 import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
-import { formatListingTitle, formatPrice } from '../data/listings'
+import { formatListingTitle, formatPrice, isListingPublic } from '../data/listings'
 import { useLocale } from '../i18n/LocaleContext'
 import {
   hasPersonalization,
@@ -23,6 +23,7 @@ export function LandingPage() {
   const newestListings = useMemo(
     () =>
       [...listings]
+        .filter(isListingPublic)
         .sort((a, b) => {
           const aTime = a.createdAt ? Date.parse(a.createdAt) : 0
           const bTime = b.createdAt ? Date.parse(b.createdAt) : 0
@@ -35,14 +36,18 @@ export function LandingPage() {
   const recommendedListings = useMemo(() => {
     const prefs = loadReelPrefs()
     if (!hasPersonalization(prefs)) return []
-    return rankRecommendedListings(listings, prefs, HOME_LISTINGS_LIMIT)
+    return rankRecommendedListings(
+      listings.filter(isListingPublic),
+      prefs,
+      HOME_LISTINGS_LIMIT,
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listings, favoriteIds])
 
   const reelsPreview = useMemo(
     () =>
       listings
-        .filter((l) => Boolean(l.videoUrl || l.videoPoster))
+        .filter((l) => isListingPublic(l) && Boolean(l.videoUrl))
         .slice(0, REELS_PREVIEW_LIMIT),
     [listings],
   )

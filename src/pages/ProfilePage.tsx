@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { UserAvatar } from '../components/UserAvatar'
 import { DeleteListingDialog, type DeletionReason } from '../components/DeleteListingDialog'
@@ -12,9 +12,18 @@ import { StatusBadge } from '../components/StatusBadge'
 
 export function ProfilePage() {
   const { user, loading: authLoading, logout } = useAuth()
-  const { getListingsForUser, removeListing, loading: listingsLoading, error } = useListings()
+  const { getListingsForUser, removeListing, loading: listingsLoading, error, syncOwnerPendingListings } = useListings()
   const { t, locale } = useLocale()
   const [deletingListing, setDeletingListing] = useState<Listing | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    void syncOwnerPendingListings(user.id)
+    const interval = window.setInterval(() => {
+      void syncOwnerPendingListings(user.id)
+    }, 15000)
+    return () => window.clearInterval(interval)
+  }, [user, syncOwnerPendingListings])
 
   if (authLoading) {
     return (
@@ -120,6 +129,14 @@ export function ProfilePage() {
                         </p>
                       </div>
                       <StatusBadge status={listing.seller.status} />
+                      {listing.processingStatus === 'processing' && (
+                        <span className="profile-listing__processing">{t('profile.processing')}</span>
+                      )}
+                      {listing.processingStatus === 'failed' && (
+                        <span className="profile-listing__processing profile-listing__processing--failed">
+                          {t('profile.processingFailed')}
+                        </span>
+                      )}
                     </div>
                     <div className="profile-listing__footer">
                       <div className="profile-listing__metrics">

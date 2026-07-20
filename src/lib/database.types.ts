@@ -91,6 +91,7 @@ export type Database = {
           flaws_video_url: string | null
           seller_avatar_url: string | null
           country: string
+          processing_status: 'processing' | 'ready' | 'failed'
         }
         Insert: {
           id: string
@@ -122,6 +123,7 @@ export type Database = {
           flaws_video_url?: string | null
           seller_avatar_url?: string | null
           country?: string
+          processing_status?: 'processing' | 'ready' | 'failed'
         }
         Update: {
           id?: string
@@ -153,6 +155,7 @@ export type Database = {
           flaws_video_url?: string | null
           seller_avatar_url?: string | null
           country?: string
+          processing_status?: 'processing' | 'ready' | 'failed'
         }
         Relationships: []
       }

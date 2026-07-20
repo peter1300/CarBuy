@@ -196,7 +196,21 @@ export function ProductPage() {
           <div className="product__main">
             <div className="product-video">
               <FavoriteButton listing={listing} className="product-video__fav" />
-              {listing.videoUrl ? (
+              {listing.processingStatus === 'processing' ? (
+                <>
+                  <img src={listing.videoPoster} alt={`${displayTitle}`} />
+                  <div className="product-video__overlay">
+                    <span className="product-video__label">{t('product.processing')}</span>
+                  </div>
+                </>
+              ) : listing.processingStatus === 'failed' ? (
+                <>
+                  <img src={listing.videoPoster} alt={`${displayTitle}`} />
+                  <div className="product-video__overlay product-video__overlay--error">
+                    <span className="product-video__label">{t('product.processingFailed')}</span>
+                  </div>
+                </>
+              ) : listing.videoUrl ? (
                 <video
                   className="product-video__player"
                   src={listing.videoUrl}

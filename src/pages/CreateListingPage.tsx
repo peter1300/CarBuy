@@ -17,7 +17,6 @@ import {
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
 import { canUseInAppRecorder } from '../lib/videoRecorder'
-import { listingPath } from '../lib/listingUrl'
 import { formatListingTitle, type Listing } from '../data/listings'
 
 export function CreateListingPage() {
@@ -40,7 +39,6 @@ export function CreateListingPage() {
   const [publishedListing, setPublishedListing] = useState<Listing | null>(null)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
-  const [publishStatus, setPublishStatus] = useState(() => t('create.publishing'))
 
   const [listingCountry, setListingCountry] = useState<MarketCountry>(browseCountry)
   const [carData, setCarData] = useState<CarMakesData | null>(null)
@@ -143,7 +141,6 @@ export function CreateListingPage() {
     }
     setPublishError(null)
     setPublishing(true)
-    setPublishStatus(t('create.compressing'))
     try {
       const listing = await addListing(
         user,
@@ -164,7 +161,6 @@ export function CreateListingPage() {
           flawsVideoFile: flawsVideoFile ?? undefined,
           status: goOnline ? 'online' : 'offline',
         },
-        { onStatus: setPublishStatus },
       )
       setPublishedListing(listing)
     } catch (err) {
@@ -241,13 +237,15 @@ export function CreateListingPage() {
               </svg>
             </div>
             <h1>{t('create.successTitle')}</h1>
-            <p>{goOnline ? t('create.successOnline') : t('create.successOffline')}</p>
+            <p>{t('create.successProcessing')}</p>
+            {goOnline ? (
+              <p className="publish-success__note">{t('create.successOnline')}</p>
+            ) : (
+              <p className="publish-success__note">{t('create.successOffline')}</p>
+            )}
             <div className="publish-success__actions">
               <Link to="/profil" className="btn btn--accent btn--lg">
                 {t('create.myListings')}
-              </Link>
-              <Link to={listingPath(publishedListing)} className="btn btn--outline btn--lg">
-                {t('create.openListing')}
               </Link>
             </div>
           </div>
@@ -747,7 +745,7 @@ export function CreateListingPage() {
                   }
                 >
                   {publishing
-                    ? publishStatus
+                    ? t('create.saving')
                     : step === STEPS.length
                       ? t('create.publish')
                       : t('create.next')}

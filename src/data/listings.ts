@@ -1,5 +1,7 @@
 export type SellerStatus = 'online' | 'busy' | 'offline'
 
+export type ListingProcessingStatus = 'processing' | 'ready' | 'failed'
+
 export type Listing = {
   id: string
   title: string
@@ -35,6 +37,7 @@ export type Listing = {
   ownerId?: string
   createdAt?: string
   uniqueViews?: number
+  processingStatus?: ListingProcessingStatus
 }
 
 import type { AppLocale, MarketCountry } from '../i18n/locales'
@@ -56,6 +59,10 @@ export function formatPrice(
 
 export function formatMileage(km: number): string {
   return `${new Intl.NumberFormat('hu-HU').format(km)} km`
+}
+
+export function isListingPublic(listing: Pick<Listing, 'processingStatus'>): boolean {
+  return !listing.processingStatus || listing.processingStatus === 'ready'
 }
 
 /** Megjelenített cím: Márka + Modell + Hirdetés címe */

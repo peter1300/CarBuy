@@ -14,12 +14,12 @@ import { useLocale } from '../i18n/LocaleContext'
 import type { MarketCountry } from '../i18n/locales'
 import { createListingId } from '../lib/listingUrl'
 import {
-  captureVideoPoster,
   isAllowedListingVideo,
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
 import { LISTING_SUMMARY_COLUMNS } from '../lib/listingQueries'
 import { mapListingRow } from '../lib/mapListing'
+import { processListingVideos } from '../lib/processListingVideos'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { tGlobal } from '../i18n/messages'
 
@@ -46,6 +46,7 @@ type ListingsContextValue = {
   loading: boolean
   error: string | null
   refreshListings: () => Promise<void>
+  syncOwnerPendingListings: (ownerId: string) => Promise<void>
   addListing: (
     user: User,
     input: UserListingInput,
@@ -101,6 +102,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       .from('listings')
       .select(LISTING_SUMMARY_COLUMNS)
       .eq('country', browseCountry)
+      .eq('processing_status', 'ready')
       .order('created_at', { ascending: false })
 
     if (queryError) {
@@ -118,6 +120,85 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     }
     setLoading(false)
   }, [browseCountry])
+
+  const syncOwnerPendingListings = useCallback(async (ownerId: string) => {
+    if (!isSupabaseConfigured) return
+
+    const { data, error: queryError } = await supabase
+      .from('listings')
+      .select(LISTING_SUMMARY_COLUMNS)
+      .eq('owner_id', ownerId)
+      .in('processing_status', ['processing', 'failed'])
+
+    if (queryError || !data) return
+
+    const pending = data.map(mapListingRow)
+    setListings((prev) => {
+      const withoutOwnerPending = prev.filter(
+        (listing) =>
+          listing.ownerId !== ownerId ||
+          (listing.processingStatus !== 'processing' && listing.processingStatus !== 'failed'),
+      )
+      return [...pending, ...withoutOwnerPending]
+    })
+  }, [])
+
+  const runListingVideoProcessing = useCallback(
+    (
+      listingId: string,
+      ownerId: string,
+      videoFile: File,
+      flawsVideoFile: File | null | undefined,
+    ) => {
+      void (async () => {
+        try {
+          const result = await processListingVideos({
+            listingId,
+            ownerId,
+            videoFile,
+            flawsVideoFile: flawsVideoFile ?? null,
+          })
+
+          const { data, error: updateError } = await supabase
+            .from('listings')
+            .update({
+              video_url: result.videoUrl,
+              flaws_video_url: result.flawsVideoUrl,
+              video_poster: result.posterUrl,
+              video_duration: result.durationLabel,
+              processing_status: 'ready',
+            })
+            .eq('id', listingId)
+            .select('*')
+            .single()
+
+          if (updateError || !data) {
+            throw new Error(updateError?.message ?? tGlobal('errors.listingSaveFailed'))
+          }
+
+          const listing = mapListingRow(data)
+          setListings((prev) => {
+            const without = prev.filter((item) => item.id !== listing.id)
+            return [listing, ...without]
+          })
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn('[CarBuy] listing video processing failed', err)
+          }
+          await supabase
+            .from('listings')
+            .update({ processing_status: 'failed' })
+            .eq('id', listingId)
+          setListings((prev) =>
+            prev.map((item) =>
+              item.id === listingId ? { ...item, processingStatus: 'failed' } : item,
+            ),
+          )
+        }
+      })()
+    },
+    [],
+  )
 
   useEffect(() => {
     void refreshListings()
@@ -185,91 +266,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      options?.onStatus?.(tGlobal('create.compressing'))
-      const { compressVideoForUpload } = await import('../lib/compressVideo')
-      const file = await compressVideoForUpload(rawFile, {
-        onProgress: ({ phase, ratio }) => {
-          if (phase === 'loading') {
-            options?.onStatus?.(tGlobal('create.compressing'))
-            return
-          }
-          options?.onStatus?.(
-            `${tGlobal('create.compressing')} ${Math.round(ratio * 100)}%`,
-          )
-        },
-      })
-
-      let flawsFile: File | null = null
-      if (rawFlaws) {
-        options?.onStatus?.(tGlobal('create.compressing'))
-        flawsFile = await compressVideoForUpload(rawFlaws, {
-          onProgress: ({ phase, ratio }) => {
-            if (phase === 'loading') {
-              options?.onStatus?.(tGlobal('create.compressing'))
-              return
-            }
-            options?.onStatus?.(
-              `${tGlobal('create.compressing')} ${Math.round(ratio * 100)}%`,
-            )
-          },
-        })
-      }
-
-      options?.onStatus?.(tGlobal('create.publishing'))
-      const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)
-
-      const videoPath = `${ownerId}/${id}/video.mp4`
-      const posterPath = `${ownerId}/${id}/poster.jpg`
-
-      options?.onStatus?.(tGlobal('create.publishing'))
-      const { error: videoUploadError } = await supabase.storage
-        .from('listing-videos')
-        .upload(videoPath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'video/mp4',
-        })
-      if (videoUploadError) {
-        throw new Error(videoUploadError.message || tGlobal('errors.generic'))
-      }
-
-      let flawsVideoUrl: string | null = null
-      if (flawsFile) {
-        const flawsPath = `${ownerId}/${id}/flaws.mp4`
-        const { error: flawsUploadError } = await supabase.storage
-          .from('listing-videos')
-          .upload(flawsPath, flawsFile, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: 'video/mp4',
-          })
-        if (flawsUploadError) {
-          throw new Error(flawsUploadError.message || tGlobal('errors.generic'))
-        }
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from('listing-videos').getPublicUrl(flawsPath)
-        flawsVideoUrl = publicUrl
-      }
-
-      const { error: posterUploadError } = await supabase.storage
-        .from('listing-videos')
-        .upload(posterPath, posterBlob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'image/jpeg',
-        })
-      if (posterUploadError) {
-        throw new Error(posterUploadError.message || tGlobal('errors.generic'))
-      }
-
-      options?.onStatus?.(tGlobal('create.publishing'))
-      const {
-        data: { publicUrl: videoUrl },
-      } = supabase.storage.from('listing-videos').getPublicUrl(videoPath)
-      const {
-        data: { publicUrl: posterUrl },
-      } = supabase.storage.from('listing-videos').getPublicUrl(posterPath)
+      options?.onStatus?.(tGlobal('create.saving'))
 
       const { data, error: insertError } = await supabase
         .from('listings')
@@ -289,10 +286,10 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           location: input.location,
           description,
           country: input.country,
-          video_poster: posterUrl || DEFAULT_POSTER,
-          video_url: videoUrl,
-          flaws_video_url: flawsVideoUrl,
-          video_duration: durationLabel,
+          video_poster: DEFAULT_POSTER,
+          video_url: null,
+          flaws_video_url: null,
+          video_duration: '—',
           features,
           specs,
           seller_name: sellerName,
@@ -302,6 +299,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           seller_response_time: tGlobal('errors.responseTime'),
           seller_avatar_url: profile.avatarUrl ?? null,
           unique_views: 0,
+          processing_status: 'processing',
         })
         .select('*')
         .single()
@@ -309,7 +307,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       if (insertError || !data) {
         const msg = insertError?.message ?? tGlobal('errors.listingSaveFailed')
         if (
-          /row-level security|RLS|permission denied|violates foreign key|video_url|flaws_video_url/i.test(
+          /row-level security|RLS|permission denied|violates foreign key|video_url|flaws_video_url|processing_status/i.test(
             msg,
           )
         ) {
@@ -320,9 +318,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
       const listing = mapListingRow(data)
       setListings((prev) => [listing, ...prev.filter((l) => l.id !== listing.id)])
+
+      runListingVideoProcessing(id, ownerId, rawFile, rawFlaws)
+
       return listing
     },
-    [],
+    [runListingVideoProcessing],
   )
 
   const getListing = useCallback(
@@ -402,6 +403,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       refreshListings,
+      syncOwnerPendingListings,
       addListing,
       getListing,
       getListingsForUser,
@@ -414,6 +416,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       refreshListings,
+      syncOwnerPendingListings,
       addListing,
       getListing,
       getListingsForUser,
