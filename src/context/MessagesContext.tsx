@@ -12,7 +12,6 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { useAuth } from './AuthContext'
 import type { Listing } from '../data/listings'
 import { formatListingTitle } from '../data/listings'
-import { compressVideoForUpload } from '../lib/compressVideo'
 import type { ConversationRow, MessageRow, ProfileRow } from '../lib/database.types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { tGlobal } from '../i18n/messages'
@@ -102,16 +101,10 @@ async function mapMessage(row: MessageRow): Promise<ChatMessage> {
   }
 }
 
-function previewFromMessage(row: Pick<MessageRow, 'body' | 'video_path'> | null | undefined): string {
-  if (!row) return tGlobal('messages.newChat')
-  if (row.body?.trim()) return row.body.trim()
-  if (row.video_path) return tGlobal('messages.videoAttached')
-  return tGlobal('messages.placeholder')
-}
-
-function lastReadAt(row: ConversationRow, userId: string): string {
-  if (row.buyer_id === userId) return row.buyer_last_read_at ?? '1970-01-01T00:00:00.000Z'
-  return row.seller_last_read_at ?? '1970-01-01T00:00:00.000Z'
+function previewFromConversation(row: ConversationRow): string {
+  if (row.last_message_body?.trim()) return row.last_message_body.trim()
+  if (row.last_message_video_path) return tGlobal('messages.videoAttached')
+  return tGlobal('messages.newChat')
 }
 
 export function MessagesProvider({ children }: { children: ReactNode }) {
@@ -168,17 +161,19 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
 
     const listingIds = [...new Set(rows.map((r) => r.listing_id))]
     const profileIds = [...new Set(rows.flatMap((r) => [r.buyer_id, r.seller_id]))]
-    const conversationIds = rows.map((r) => r.id)
 
-    const [{ data: listings }, { data: profiles }, { data: allMessages }] = await Promise.all([
+    const [{ data: listings }, { data: profiles }, { data: unreadRows }] = await Promise.all([
       supabase.from('listings').select('id, title, video_poster, make, model').in('id', listingIds),
       supabase.from('profiles').select('id, name, company_name, account_type').in('id', profileIds),
-      supabase
-        .from('messages')
-        .select('conversation_id, body, video_path, created_at, sender_id')
-        .in('conversation_id', conversationIds)
-        .order('created_at', { ascending: false }),
+      supabase.rpc('get_unread_message_counts', { p_user_id: user.id }),
     ])
+
+    const unreadByConv = new Map<string, number>(
+      (unreadRows ?? []).map((row) => [
+        row.conversation_id as string,
+        Number(row.unread_count),
+      ]),
+    )
 
     const listingMap = new Map(
       (listings ?? []).map((l) => [
@@ -187,34 +182,6 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       ]),
     )
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p as ProfileRow]))
-
-    type MsgMeta = {
-      conversation_id: string
-      body: string | null
-      video_path: string | null
-      created_at: string
-      sender_id: string
-    }
-
-    const latestByConv = new Map<string, MsgMeta>()
-    const unreadByConv = new Map<string, number>()
-
-    for (const row of rows) {
-      unreadByConv.set(row.id, 0)
-    }
-
-    for (const msg of (allMessages ?? []) as MsgMeta[]) {
-      if (!latestByConv.has(msg.conversation_id)) {
-        latestByConv.set(msg.conversation_id, msg)
-      }
-      const conv = rows.find((r) => r.id === msg.conversation_id)
-      if (!conv) continue
-      if (msg.sender_id === user.id) continue
-      const readAt = lastReadAt(conv, user.id)
-      if (new Date(msg.created_at).getTime() > new Date(readAt).getTime()) {
-        unreadByConv.set(msg.conversation_id, (unreadByConv.get(msg.conversation_id) ?? 0) + 1)
-      }
-    }
 
     const mapped: ConversationSummary[] = rows.map((row) => {
       const otherId = row.buyer_id === user.id ? row.seller_id : row.buyer_id
@@ -242,7 +209,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         sellerId: row.seller_id,
         otherName,
         lastMessageAt: row.last_message_at,
-        lastPreview: previewFromMessage(latestByConv.get(row.id)),
+        lastPreview: previewFromConversation(row),
         unreadCount: unreadByConv.get(row.id) ?? 0,
       }
     })
@@ -475,6 +442,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       if (file) {
         let uploadFile: File
         try {
+          const { compressVideoForUpload } = await import('../lib/compressVideo')
           uploadFile = await compressVideoForUpload(file)
         } catch {
           return { error: tGlobal('errors.generic') }

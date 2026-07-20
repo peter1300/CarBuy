@@ -23,7 +23,7 @@ import {
   type AppLocale,
   type MarketCountry,
 } from './locales'
-import { setActiveLocale, translate } from './messages'
+import { preloadCatalog, setActiveLocale, translate, warmCatalog } from './messages'
 import type { MessageKey } from './types'
 
 type LocaleContextValue = {
@@ -43,7 +43,9 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [browseCountry, setBrowseCountryState] = useState<MarketCountry>(
     () => readStoredCountry() ?? countryFromNavigator(),
   )
-  const [ready, setReady] = useState(false)
+  const [geoReady, setGeoReady] = useState(false)
+  const [i18nReady, setI18nReady] = useState(false)
+  const ready = geoReady && i18nReady
 
   useEffect(() => {
     let cancelled = false
@@ -71,13 +73,25 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (!cancelled) setReady(true)
+      if (!cancelled) setGeoReady(true)
     })()
 
     return () => {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    setI18nReady(false)
+    void preloadCatalog(locale).then(() => {
+      if (!cancelled) setI18nReady(true)
+    })
+    if (locale !== 'en') warmCatalog('en')
+    return () => {
+      cancelled = true
+    }
+  }, [locale])
 
   useEffect(() => {
     if (!user) return

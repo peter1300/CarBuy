@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
+import { loadCarMakesModels, type CarMakesData } from '../lib/carMakesModelsLoader'
 import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
 import {
   EMPTY_LISTING_SEARCH,
@@ -23,6 +23,7 @@ export function SearchPanel({
   const navigate = useNavigate()
   const { t, locale } = useLocale()
   const fuelAny = t('search.fuelAny')
+  const [carData, setCarData] = useState<CarMakesData | null>(null)
   const [make, setMake] = useState(initialFilters.make)
   const [model, setModel] = useState(initialFilters.model)
   const [priceMin, setPriceMin] = useState(initialFilters.priceMin)
@@ -48,6 +49,10 @@ export function SearchPanel({
   )
 
   useEffect(() => {
+    void loadCarMakesModels().then(setCarData)
+  }, [])
+
+  useEffect(() => {
     setMake(initialFilters.make)
     setModel(initialFilters.model)
     setPriceMin(initialFilters.priceMin)
@@ -62,7 +67,10 @@ export function SearchPanel({
     setLocation(initialFilters.location)
   }, [initialFilters, fuelAny])
 
-  const models = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
+  const models = useMemo(
+    () => (make && carData ? (carData.CAR_MAKES_MODELS[make] ?? []) : []),
+    [make, carData],
+  )
 
   const handleMakeChange = (value: string) => {
     setMake(value)
@@ -114,7 +122,7 @@ export function SearchPanel({
               onChange={(e) => handleMakeChange(e.target.value)}
             >
               <option value="">{t('search.make')}</option>
-              {CAR_MAKES.map((m) => (
+              {carData?.CAR_MAKES.map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>

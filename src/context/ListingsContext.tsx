@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -17,7 +18,7 @@ import {
   isAllowedListingVideo,
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
-import { compressVideoForUpload } from '../lib/compressVideo'
+import { LISTING_SUMMARY_COLUMNS } from '../lib/listingQueries'
 import { mapListingRow } from '../lib/mapListing'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { tGlobal } from '../i18n/messages'
@@ -81,6 +82,11 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const listingsRef = useRef(listings)
+
+  useEffect(() => {
+    listingsRef.current = listings
+  }, [listings])
 
   const refreshListings = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -93,7 +99,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     const { data, error: queryError } = await supabase
       .from('listings')
-      .select('*')
+      .select(LISTING_SUMMARY_COLUMNS)
       .eq('country', browseCountry)
       .order('created_at', { ascending: false })
 
@@ -178,6 +184,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       }
 
       options?.onStatus?.(tGlobal('create.compressing'))
+      const { compressVideoForUpload } = await import('../lib/compressVideo')
       const file = await compressVideoForUpload(rawFile, {
         onProgress: ({ phase, ratio }) => {
           if (phase === 'loading') {
@@ -323,7 +330,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     async (id: string, reason?: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold') => {
       if (!isSupabaseConfigured) throw new Error(tGlobal('errors.supabaseMissing'))
 
-      const listing = listings.find((l) => l.id === id)
+      const listing = listingsRef.current.find((l) => l.id === id)
 
       if (reason && listing?.ownerId) {
         await supabase.from('listing_deletions').insert({
@@ -342,7 +349,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
       setListings((prev) => prev.filter((l) => l.id !== id))
     },
-    [listings],
+    [],
   )
 
   const getUniqueViews = useCallback(
@@ -354,7 +361,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     async (listingId: string, options?: { excludeUserId?: string }) => {
       if (!isSupabaseConfigured) return
 
-      const listing = listings.find((l) => l.id === listingId)
+      const listing = listingsRef.current.find((l) => l.id === listingId)
       if (!listing) return
       if (options?.excludeUserId && listing.ownerId === options.excludeUserId) return
 
@@ -365,7 +372,9 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       })
 
       if (rpcError) {
-        console.warn('[CarBuy] record_unique_view failed', rpcError.message)
+        if (import.meta.env.DEV) {
+          console.warn('[CarBuy] record_unique_view failed', rpcError.message)
+        }
         return
       }
 
@@ -375,7 +384,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         )
       }
     },
-    [listings],
+    [],
   )
 
   const value = useMemo(

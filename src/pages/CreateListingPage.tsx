@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { ListingVideoRecorder } from '../components/ListingVideoRecorder'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
-import { CAR_MAKES, CAR_MAKES_MODELS } from '../data/carMakesModels'
+import { loadCarMakesModels, type CarMakesData } from '../lib/carMakesModelsLoader'
 import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
 import { useLocale } from '../i18n/LocaleContext'
 import {
@@ -43,6 +43,11 @@ export function CreateListingPage() {
   const [publishStatus, setPublishStatus] = useState(() => t('create.publishing'))
 
   const [listingCountry, setListingCountry] = useState<MarketCountry>(browseCountry)
+  const [carData, setCarData] = useState<CarMakesData | null>(null)
+
+  useEffect(() => {
+    void loadCarMakesModels().then(setCarData)
+  }, [])
 
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
@@ -67,7 +72,10 @@ export function CreateListingPage() {
   const [goOnline, setGoOnline] = useState(true)
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100
-  const modelsForMake = useMemo(() => (make ? CAR_MAKES_MODELS[make] ?? [] : []), [make])
+  const modelsForMake = useMemo(
+    () => (make && carData ? (carData.CAR_MAKES_MODELS[make] ?? []) : []),
+    [make, carData],
+  )
 
   useEffect(() => {
     setListingCountry(browseCountry)
@@ -456,7 +464,7 @@ export function CreateListingPage() {
                       <option value="" disabled>
                         —
                       </option>
-                      {CAR_MAKES.map((m) => (
+                      {carData?.CAR_MAKES.map((m) => (
                         <option key={m} value={m}>
                           {m}
                         </option>

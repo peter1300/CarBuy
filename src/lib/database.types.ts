@@ -184,6 +184,9 @@ export type Database = {
           created_at: string
           buyer_last_read_at: string
           seller_last_read_at: string
+          last_message_body: string | null
+          last_message_video_path: string | null
+          last_message_sender_id: string | null
         }
         Insert: {
           id?: string
@@ -194,6 +197,9 @@ export type Database = {
           created_at?: string
           buyer_last_read_at?: string
           seller_last_read_at?: string
+          last_message_body?: string | null
+          last_message_video_path?: string | null
+          last_message_sender_id?: string | null
         }
         Update: {
           id?: string
@@ -204,6 +210,9 @@ export type Database = {
           created_at?: string
           buyer_last_read_at?: string
           seller_last_read_at?: string
+          last_message_body?: string | null
+          last_message_video_path?: string | null
+          last_message_sender_id?: string | null
         }
         Relationships: []
       }
@@ -366,6 +375,13 @@ export type Database = {
           day: string
           registrations: number
           listings_created: number
+        }[]
+      }
+      get_unread_message_counts: {
+        Args: { p_user_id: string }
+        Returns: {
+          conversation_id: string
+          unread_count: number
         }[]
       }
     }

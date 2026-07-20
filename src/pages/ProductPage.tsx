@@ -10,9 +10,11 @@ import { useCall } from '../context/CallContext'
 import { useMessages } from '../context/MessagesContext'
 import { useLocale } from '../i18n/LocaleContext'
 import { listingIdFromSlug, listingPath } from '../lib/listingUrl'
+import { mapListingRow } from '../lib/mapListing'
 import { rememberListingOpen } from '../lib/reels'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { CallMode } from '../lib/callMedia'
+import type { Listing } from '../data/listings'
 
 type SellerContact = {
   email: string
@@ -31,9 +33,34 @@ export function ProductPage() {
   const [messageError, setMessageError] = useState<string | null>(null)
   const [sellerContact, setSellerContact] = useState<SellerContact | null>(null)
   const [contactLoading, setContactLoading] = useState(false)
+  const [detail, setDetail] = useState<Listing | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const id = slug ? listingIdFromSlug(slug) : undefined
-  const listing = id ? getListing(id) : undefined
+  const summary = id ? getListing(id) : undefined
+  const listing = detail ?? summary
+
+  useEffect(() => {
+    if (!id || !isSupabaseConfigured) {
+      setDetail(null)
+      setDetailLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setDetailLoading(true)
+
+    void (async () => {
+      const { data } = await supabase.from('listings').select('*').eq('id', id).maybeSingle()
+      if (cancelled) return
+      setDetail(data ? mapListingRow(data) : null)
+      setDetailLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
   useEffect(() => {
     if (!id || !listing) return
@@ -75,7 +102,7 @@ export function ProductPage() {
     }
   }, [user, listing?.ownerId])
 
-  if (listingsLoading) {
+  if ((listingsLoading || detailLoading) && !listing) {
     return (
       <main className="page product">
         <div className="container">
