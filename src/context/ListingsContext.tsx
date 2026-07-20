@@ -18,6 +18,7 @@ import {
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
 import { LISTING_SUMMARY_COLUMNS } from '../lib/listingQueries'
+import { buildListingSpecs, type UserListingUpdateInput } from '../lib/listingSpecs'
 import { mapListingRow } from '../lib/mapListing'
 import { processListingVideos } from '../lib/processListingVideos'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -52,6 +53,7 @@ type ListingsContextValue = {
     input: UserListingInput,
     options?: { onStatus?: (status: string) => void },
   ) => Promise<Listing>
+  updateListing: (user: User, listingId: string, input: UserListingUpdateInput) => Promise<Listing>
   getListing: (id: string) => Listing | undefined
   getListingsForUser: (userId: string) => Listing[]
   removeListing: (id: string, reason?: 'sold_carbuy' | 'sold_elsewhere' | 'not_sold') => Promise<void>
@@ -233,20 +235,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           : profile.name
       const description = input.description || tGlobal('errors.defaultDescription')
       const features = [tGlobal('errors.featureVideo')]
-      const specs = [
-        { label: tGlobal('errors.specYear'), value: String(input.year) },
-        {
-          label: tGlobal('errors.specMileage'),
-          value: `${input.mileage.toLocaleString()} km`,
-        },
-        { label: tGlobal('errors.specFuel'), value: input.fuel },
-        { label: tGlobal('errors.specTransmission'), value: input.transmission },
-        {
-          label: tGlobal('errors.specPower'),
-          value: input.power ? tGlobal('product.power', { power: input.power }) : '—',
-        },
-        { label: tGlobal('errors.specLocation'), value: input.location },
-      ]
+      const specs = buildListingSpecs(input)
 
       const rawFile = input.videoFile
       if (!isAllowedListingVideo(rawFile)) {
@@ -324,6 +313,59 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       return listing
     },
     [runListingVideoProcessing],
+  )
+
+  const updateListing = useCallback(
+    async (user: User, listingId: string, input: UserListingUpdateInput) => {
+      if (!isSupabaseConfigured) {
+        throw new Error(tGlobal('errors.supabaseMissing'))
+      }
+
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser()
+      if (authError || !authUser) {
+        throw new Error(tGlobal('errors.sessionExpired'))
+      }
+
+      const existing = listingsRef.current.find((listing) => listing.id === listingId)
+      if (!existing?.ownerId || existing.ownerId !== user.id) {
+        throw new Error(tGlobal('editListing.notOwner'))
+      }
+
+      const description = input.description || tGlobal('errors.defaultDescription')
+      const specs = buildListingSpecs(input)
+
+      const { data, error: updateError } = await supabase
+        .from('listings')
+        .update({
+          title: input.title,
+          year: input.year,
+          price: input.price,
+          mileage: input.mileage,
+          fuel: input.fuel,
+          transmission: input.transmission,
+          power: input.power,
+          location: input.location,
+          description,
+          specs,
+          seller_status: input.status,
+        })
+        .eq('id', listingId)
+        .eq('owner_id', user.id)
+        .select('*')
+        .single()
+
+      if (updateError || !data) {
+        throw new Error(updateError?.message ?? tGlobal('errors.listingSaveFailed'))
+      }
+
+      const listing = mapListingRow(data)
+      setListings((prev) => prev.map((item) => (item.id === listing.id ? listing : item)))
+      return listing
+    },
+    [],
   )
 
   const getListing = useCallback(
@@ -405,6 +447,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       refreshListings,
       syncOwnerPendingListings,
       addListing,
+      updateListing,
       getListing,
       getListingsForUser,
       removeListing,
@@ -418,6 +461,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       refreshListings,
       syncOwnerPendingListings,
       addListing,
+      updateListing,
       getListing,
       getListingsForUser,
       removeListing,

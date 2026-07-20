@@ -364,6 +364,13 @@ ul {
   background: var(--accent-soft);
 }
 
+.mobile-nav__my-listings {
+  font-weight: 650;
+  color: var(--text) !important;
+  background: var(--bg-muted);
+  margin-bottom: 0.15rem;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -2252,6 +2259,40 @@ a.btn {
 
 .account-page__header p {
   color: var(--text-secondary);
+}
+
+.account-page__form {
+  max-width: min(100% - 2rem, 720px);
+}
+
+.account-page__listing-title {
+  margin-top: 0.65rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.form-hint--locked {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.is-locked,
+input.is-locked:disabled,
+select.is-locked:disabled,
+textarea.is-locked:disabled {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.account-card__actions {
+  margin-top: 1.25rem;
 }
 
 .account-card {

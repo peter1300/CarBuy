@@ -322,12 +322,21 @@ export function ProductPage() {
               </div>
 
               <div className="seller-card__actions">
-                <button
-                  type="button"
-                  className="btn btn--accent btn--lg btn--block"
-                  disabled={!canCall}
-                  onClick={() => handleCall('video')}
-                >
+                {isOwnListing ? (
+                  <Link
+                    to={`/profil/hirdetes/${listing.id}/szerkesztes`}
+                    className="btn btn--accent btn--lg btn--block"
+                  >
+                    {t('profile.edit')}
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn--accent btn--lg btn--block"
+                      disabled={!canCall}
+                      onClick={() => handleCall('video')}
+                    >
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
                     <rect x="3" y="4" width="12" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" />
                     <circle cx="9" cy="8.5" r="2" stroke="currentColor" strokeWidth="1.5" />
@@ -359,6 +368,8 @@ export function ProductPage() {
                   {messageBusy ? t('product.messaging') : t('product.message')}
                 </button>
                 {messageError && <p className="form-error">{messageError}</p>}
+                  </>
+                )}
               </div>
 
               <div className="seller-card__contact">

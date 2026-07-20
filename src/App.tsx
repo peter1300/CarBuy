@@ -34,6 +34,9 @@ const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default:
 const CreateListingPage = lazy(() =>
   import('./pages/CreateListingPage').then((m) => ({ default: m.CreateListingPage })),
 )
+const EditListingPage = lazy(() =>
+  import('./pages/EditListingPage').then((m) => ({ default: m.EditListingPage })),
+)
 const ProfilePage = lazy(() =>
   import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 )
@@ -84,6 +87,7 @@ export default function App() {
                         <Route path="/belepes" element={<LoginPage />} />
                         <Route path="/hirdetes-feladas" element={<CreateListingPage />} />
                         <Route path="/profil" element={<ProfilePage />} />
+                        <Route path="/profil/hirdetes/:id/szerkesztes" element={<EditListingPage />} />
                         <Route path="/profil/szerkesztes" element={<EditProfilePage />} />
                         <Route path="/profil/beallitasok" element={<SettingsPage />} />
                         <Route path="/uzenetek" element={<MessagesInboxPage />} />

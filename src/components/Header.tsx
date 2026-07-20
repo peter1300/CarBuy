@@ -171,6 +171,14 @@ export function Header() {
                 {accountOpen && (
                   <div className="account-dropdown" id={menuId} role="menu">
                     <Link
+                      to="/profil"
+                      role="menuitem"
+                      className="account-dropdown__item"
+                      onClick={closeAccount}
+                    >
+                      {t('nav.myListings')}
+                    </Link>
+                    <Link
                       to="/profil/szerkesztes"
                       role="menuitem"
                       className="account-dropdown__item"
@@ -185,14 +193,6 @@ export function Header() {
                       onClick={closeAccount}
                     >
                       {t('nav.settings')}
-                    </Link>
-                    <Link
-                      to="/profil"
-                      role="menuitem"
-                      className="account-dropdown__item"
-                      onClick={closeAccount}
-                    >
-                      {t('nav.myListings')}
                     </Link>
                     <div className="account-dropdown__divider" role="separator" />
                     <button
@@ -253,6 +253,11 @@ export function Header() {
       </div>
 
       <nav className={`mobile-nav${menuOpen ? ' is-open' : ''}`} aria-label="Mobile">
+        {user && (
+          <Link to="/profil" className="mobile-nav__my-listings" onClick={closeMenu}>
+            {t('nav.myListings')}
+          </Link>
+        )}
         <div className="mobile-nav__lang">
           <LanguageSwitcher />
         </div>
@@ -281,9 +286,6 @@ export function Header() {
             </Link>
             <Link to="/profil/beallitasok" onClick={closeMenu}>
               {t('nav.settings')}
-            </Link>
-            <Link to="/profil" onClick={closeMenu}>
-              {t('nav.myListings')}
             </Link>
             <Link to="/kedvencek" onClick={closeMenu}>
               {t('nav.favorites')}

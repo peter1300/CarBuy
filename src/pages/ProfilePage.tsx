@@ -156,7 +156,13 @@ export function ProfilePage() {
                         </p>
                       </div>
                       <div className="profile-listing__actions">
-                        <Link to={listingPath(listing)} className="btn btn--outline">
+                        <Link
+                          to={`/profil/hirdetes/${listing.id}/szerkesztes`}
+                          className="btn btn--outline"
+                        >
+                          {t('profile.edit')}
+                        </Link>
+                        <Link to={listingPath(listing)} className="btn btn--ghost">
                           {t('profile.open')}
                         </Link>
                         <button
