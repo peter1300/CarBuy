@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Listing, SellerStatus } from '../data/listings'
-import { ensureProfile, type User } from './AuthContext'
+import { ensureProfile, useAuth, type User } from './AuthContext'
 import { useLocale } from '../i18n/LocaleContext'
 import type { MarketCountry } from '../i18n/locales'
 import { createListingId } from '../lib/listingUrl'
@@ -21,6 +21,13 @@ import { LISTING_SUMMARY_COLUMNS } from '../lib/listingQueries'
 import { buildListingSpecs, type UserListingUpdateInput } from '../lib/listingSpecs'
 import { mapListingRow } from '../lib/mapListing'
 import { processListingVideos } from '../lib/processListingVideos'
+import {
+  listPendingListingVideosForOwner,
+  loadPendingListingVideos,
+  pendingRecordToFiles,
+  removePendingListingVideos,
+  savePendingListingVideos,
+} from '../lib/listingVideoQueue'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { tGlobal } from '../i18n/messages'
 
@@ -48,6 +55,7 @@ type ListingsContextValue = {
   error: string | null
   refreshListings: () => Promise<void>
   syncOwnerPendingListings: (ownerId: string) => Promise<void>
+  resumeListingVideoProcessing: (ownerId: string) => Promise<void>
   addListing: (
     user: User,
     input: UserListingInput,
@@ -81,11 +89,13 @@ function getVisitorId(): string {
 }
 
 export function ListingsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
   const { browseCountry } = useLocale()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const listingsRef = useRef(listings)
+  const activeProcessingRef = useRef(new Set<string>())
 
   useEffect(() => {
     listingsRef.current = listings
@@ -145,6 +155,13 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const markListingProcessingFailed = useCallback(async (listingId: string) => {
+    await supabase.from('listings').update({ processing_status: 'failed' }).eq('id', listingId)
+    setListings((prev) =>
+      prev.map((item) => (item.id === listingId ? { ...item, processingStatus: 'failed' } : item)),
+    )
+  }, [])
+
   const runListingVideoProcessing = useCallback(
     (
       listingId: string,
@@ -152,6 +169,9 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       videoFile: File,
       flawsVideoFile: File | null | undefined,
     ) => {
+      if (activeProcessingRef.current.has(listingId)) return
+      activeProcessingRef.current.add(listingId)
+
       void (async () => {
         try {
           const result = await processListingVideos({
@@ -178,29 +198,63 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
             throw new Error(updateError?.message ?? tGlobal('errors.listingSaveFailed'))
           }
 
+          await removePendingListingVideos(listingId)
+
           const listing = mapListingRow(data)
           setListings((prev) => {
             const without = prev.filter((item) => item.id !== listing.id)
             return [listing, ...without]
           })
         } catch (err) {
-          if (import.meta.env.DEV) {
-            console.warn('[CarBuy] listing video processing failed', err)
-          }
-          await supabase
-            .from('listings')
-            .update({ processing_status: 'failed' })
-            .eq('id', listingId)
-          setListings((prev) =>
-            prev.map((item) =>
-              item.id === listingId ? { ...item, processingStatus: 'failed' } : item,
-            ),
-          )
+          console.warn('[CarBuy] listing video processing failed', err)
+          await markListingProcessingFailed(listingId)
+        } finally {
+          activeProcessingRef.current.delete(listingId)
         }
       })()
     },
-    [],
+    [markListingProcessingFailed],
   )
+
+  const resumeListingVideoProcessing = useCallback(
+    async (ownerId: string) => {
+      if (!isSupabaseConfigured) return
+
+      await syncOwnerPendingListings(ownerId)
+
+      const { data: processingRows } = await supabase
+        .from('listings')
+        .select('id, video_url')
+        .eq('owner_id', ownerId)
+        .eq('processing_status', 'processing')
+
+      const queued = await listPendingListingVideosForOwner(ownerId)
+      const queuedIds = new Set(queued.map((record) => record.listingId))
+
+      for (const row of processingRows ?? []) {
+        const hasQueue = queuedIds.has(row.id)
+
+        if (!hasQueue && !row.video_url) {
+          await markListingProcessingFailed(row.id)
+          continue
+        }
+
+        if (!hasQueue) continue
+
+        const pending = await loadPendingListingVideos(row.id)
+        if (!pending) continue
+
+        const { videoFile, flawsVideoFile } = pendingRecordToFiles(pending)
+        runListingVideoProcessing(row.id, ownerId, videoFile, flawsVideoFile)
+      }
+    },
+    [markListingProcessingFailed, runListingVideoProcessing, syncOwnerPendingListings],
+  )
+
+  useEffect(() => {
+    if (!user?.id) return
+    void resumeListingVideoProcessing(user.id)
+  }, [user?.id, resumeListingVideoProcessing])
 
   useEffect(() => {
     void refreshListings()
@@ -308,6 +362,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       const listing = mapListingRow(data)
       setListings((prev) => [listing, ...prev.filter((l) => l.id !== listing.id)])
 
+      await savePendingListingVideos({
+        listingId: id,
+        ownerId,
+        videoFile: rawFile,
+        flawsVideoFile: rawFlaws,
+      })
       runListingVideoProcessing(id, ownerId, rawFile, rawFlaws)
 
       return listing
@@ -399,6 +459,8 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       const { error: deleteError } = await supabase.from('listings').delete().eq('id', id)
       if (deleteError) throw new Error(deleteError.message)
 
+      await removePendingListingVideos(id)
+
       setListings((prev) => prev.filter((l) => l.id !== id))
     },
     [],
@@ -446,6 +508,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       error,
       refreshListings,
       syncOwnerPendingListings,
+      resumeListingVideoProcessing,
       addListing,
       updateListing,
       getListing,
@@ -460,6 +523,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       error,
       refreshListings,
       syncOwnerPendingListings,
+      resumeListingVideoProcessing,
       addListing,
       updateListing,
       getListing,

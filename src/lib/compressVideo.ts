@@ -13,6 +13,8 @@ type CompressOptions = {
   maxHeight?: number
   /** Lower = better quality / larger file. 18–22 ≈ visually lossless for social. */
   crf?: number
+  /** Abort compression and upload the original file when exceeded. */
+  timeoutMs?: number
 }
 
 let ffmpegInstance: FFmpeg | null = null
@@ -58,6 +60,24 @@ function extensionForInput(file: File): string {
   return 'mp4'
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  if (!timeoutMs || timeoutMs <= 0) return promise
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label} timed out`))
+    }, timeoutMs)
+    promise
+      .then((value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      })
+      .catch((err) => {
+        window.clearTimeout(timer)
+        reject(err)
+      })
+  })
+}
+
 /**
  * Re-encode to H.264/AAC MP4 at high visual quality (CRF ~20) and max 1080p.
  * Phone camera files often drop from 100MB+ to TikTok-like 10–40MB without visible loss.
@@ -72,61 +92,65 @@ export async function compressVideoForUpload(
 
   // Tiny clips: still normalize to MP4 for consistent playback, unless already small mp4
   try {
-    const ffmpeg = await getFFmpeg(options.onProgress)
-    options.onProgress?.({ phase: 'compressing', ratio: 0 })
-    progressHandler = (ratio) => options.onProgress?.({ phase: 'compressing', ratio })
+    const compressPromise = (async () => {
+      const ffmpeg = await getFFmpeg(options.onProgress)
+      options.onProgress?.({ phase: 'compressing', ratio: 0 })
+      progressHandler = (ratio) => options.onProgress?.({ phase: 'compressing', ratio })
 
-    const inputName = `input.${extensionForInput(file)}`
-    const outputName = 'output.mp4'
+      const inputName = `input.${extensionForInput(file)}`
+      const outputName = 'output.mp4'
 
-    await ffmpeg.writeFile(inputName, await fetchFile(file))
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
 
-    // Scale down only if taller/wider than 1080 on the long edge height constraint
-    const scaleFilter = `scale='min(${maxHeight},iw)':-2:force_original_aspect_ratio=decrease`
+      // Scale down only if taller/wider than 1080 on the long edge height constraint
+      const scaleFilter = `scale='min(${maxHeight},iw)':-2:force_original_aspect_ratio=decrease`
 
-    await ffmpeg.exec([
-      '-i',
-      inputName,
-      '-vf',
-      scaleFilter,
-      '-c:v',
-      'libx264',
-      '-preset',
-      'veryfast',
-      '-crf',
-      String(crf),
-      '-pix_fmt',
-      'yuv420p',
-      '-c:a',
-      'aac',
-      '-b:a',
-      '128k',
-      '-ac',
-      '2',
-      '-movflags',
-      '+faststart',
-      '-y',
-      outputName,
-    ])
+      await ffmpeg.exec([
+        '-i',
+        inputName,
+        '-vf',
+        scaleFilter,
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-crf',
+        String(crf),
+        '-pix_fmt',
+        'yuv420p',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-ac',
+        '2',
+        '-movflags',
+        '+faststart',
+        '-y',
+        outputName,
+      ])
 
-    const data = await ffmpeg.readFile(outputName)
-    await ffmpeg.deleteFile(inputName).catch(() => undefined)
-    await ffmpeg.deleteFile(outputName).catch(() => undefined)
+      const data = await ffmpeg.readFile(outputName)
+      await ffmpeg.deleteFile(inputName).catch(() => undefined)
+      await ffmpeg.deleteFile(outputName).catch(() => undefined)
 
-    const bytes =
-      typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data)
-    const blob = new Blob([bytes], { type: 'video/mp4' })
+      const bytes =
+        typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data)
+      const blob = new Blob([bytes], { type: 'video/mp4' })
 
-    if (blob.size === 0) return file
-    // Keep original if compression somehow grew the file
-    if (blob.size >= file.size * 0.98) return file
+      if (blob.size === 0) return file
+      // Keep original if compression somehow grew the file
+      if (blob.size >= file.size * 0.98) return file
 
-    const base = file.name.replace(/\.[^.]+$/, '') || 'video'
-    options.onProgress?.({ phase: 'compressing', ratio: 1 })
-    return new File([blob], `${base}.mp4`, {
-      type: 'video/mp4',
-      lastModified: Date.now(),
-    })
+      const base = file.name.replace(/\.[^.]+$/, '') || 'video'
+      options.onProgress?.({ phase: 'compressing', ratio: 1 })
+      return new File([blob], `${base}.mp4`, {
+        type: 'video/mp4',
+        lastModified: Date.now(),
+      })
+    })()
+
+    return await withTimeout(compressPromise, options.timeoutMs ?? 0, 'Video compression')
   } catch (err) {
     console.warn('[CarBuy] video compression failed, uploading original', err)
     return file

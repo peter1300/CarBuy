@@ -42,11 +42,11 @@ export async function processListingVideos(
   }
 
   const { compressVideoForUpload } = await import('./compressVideo')
-  const file = await compressVideoForUpload(rawFile)
+  const file = await compressVideoForUpload(rawFile, { timeoutMs: 4 * 60 * 1000 })
 
   let flawsFile: File | null = null
   if (rawFlaws) {
-    flawsFile = await compressVideoForUpload(rawFlaws)
+    flawsFile = await compressVideoForUpload(rawFlaws, { timeoutMs: 4 * 60 * 1000 })
   }
 
   const { blob: posterBlob, durationLabel } = await captureVideoPoster(file)

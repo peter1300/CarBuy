@@ -12,18 +12,18 @@ import { StatusBadge } from '../components/StatusBadge'
 
 export function ProfilePage() {
   const { user, loading: authLoading, logout } = useAuth()
-  const { getListingsForUser, removeListing, loading: listingsLoading, error, syncOwnerPendingListings } = useListings()
+  const { getListingsForUser, removeListing, loading: listingsLoading, error, resumeListingVideoProcessing } = useListings()
   const { t, locale } = useLocale()
   const [deletingListing, setDeletingListing] = useState<Listing | null>(null)
 
   useEffect(() => {
     if (!user) return
-    void syncOwnerPendingListings(user.id)
+    void resumeListingVideoProcessing(user.id)
     const interval = window.setInterval(() => {
-      void syncOwnerPendingListings(user.id)
+      void resumeListingVideoProcessing(user.id)
     }, 15000)
     return () => window.clearInterval(interval)
-  }, [user, syncOwnerPendingListings])
+  }, [user, resumeListingVideoProcessing])
 
   if (authLoading) {
     return (
