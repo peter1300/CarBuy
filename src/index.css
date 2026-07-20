@@ -431,13 +431,14 @@ ul {
     z-index: 90;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    align-items: end;
+    align-items: center;
     height: var(--bottom-nav-h);
-    padding: 0.35rem 0.25rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+    padding: 0 0.25rem env(safe-area-inset-bottom, 0px);
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: saturate(180%) blur(18px);
     border-top: 1px solid var(--border);
     box-shadow: 0 -8px 24px rgba(17, 17, 19, 0.06);
+    box-sizing: border-box;
   }
 
   body.reels-mode .mobile-bottom-nav {
@@ -496,7 +497,7 @@ ul {
 
   .mobile-bottom-nav__item--reels {
     position: relative;
-    top: -0.55rem;
+    top: -0.4rem;
     color: var(--accent);
     font-weight: 700;
   }
@@ -2736,6 +2737,9 @@ a.btn {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   padding: 1.5rem 1.25rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 @media (min-width: 560px) {
@@ -2798,6 +2802,8 @@ a.btn {
 
 .video-dropzone {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 220px;
   display: flex;
   flex-direction: column;
@@ -2811,9 +2817,13 @@ a.btn {
     linear-gradient(160deg, rgba(15, 122, 90, 0.04), transparent 50%),
     var(--bg);
   color: var(--text-secondary);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .video-dropzone.is-filled {
+  padding: 1rem;
+  align-items: stretch;
   border-style: solid;
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -2828,12 +2838,17 @@ a.btn {
 }
 
 .video-dropzone__preview {
-  width: min(100%, 360px);
-  max-height: 200px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: min(42dvh, 240px);
   border-radius: 10px;
-  object-fit: cover;
+  object-fit: contain;
   margin-bottom: 0.5rem;
   background: #111;
+  align-self: stretch;
 }
 
 .video-dropzone__icon,
@@ -2848,6 +2863,9 @@ a.btn {
   color: var(--text);
   letter-spacing: -0.015em;
   text-align: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .video-dropzone.is-filled strong {
@@ -2864,10 +2882,13 @@ a.btn {
   flex-wrap: wrap;
   gap: 0.65rem;
   margin-top: 0.85rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .video-source-actions .btn {
-  flex: 1 1 140px;
+  flex: 1 1 calc(50% - 0.35rem);
+  min-width: 0;
 }
 
 .video-recorder {
