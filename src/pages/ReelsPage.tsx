@@ -144,26 +144,40 @@ export function ReelsPage() {
 
   useEffect(() => {
     const root = scrollerRef.current
-    if (!root) return
+    if (!root || feed.length === 0) return
 
-    const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-reel-index]'))
-    if (slides.length === 0) return
+    let raf = 0
+    let scrollEndTimer: ReturnType<typeof setTimeout> | undefined
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting && e.intersectionRatio >= 0.5)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
-        if (!visible) return
-        const index = Number((visible.target as HTMLElement).dataset.reelIndex)
-        if (Number.isFinite(index)) setActiveIndex(index)
-      },
-      { root, threshold: [0.5, 0.65, 0.8, 0.95] },
-    )
+    const syncActiveFromScroll = () => {
+      const slideHeight = root.clientHeight
+      if (slideHeight <= 0) return
+      const index = Math.round(root.scrollTop / slideHeight)
+      const clamped = Math.max(0, Math.min(index, feed.length - 1))
+      if (clamped !== activeIndexRef.current) {
+        setActiveIndex(clamped)
+        return
+      }
+      playActive()
+    }
 
-    slides.forEach((slide) => observer.observe(slide))
-    return () => observer.disconnect()
-  }, [feed.length])
+    const scheduleSync = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(syncActiveFromScroll)
+      if (scrollEndTimer) clearTimeout(scrollEndTimer)
+      scrollEndTimer = setTimeout(syncActiveFromScroll, 100)
+    }
+
+    root.addEventListener('scroll', scheduleSync, { passive: true })
+    root.addEventListener('scrollend', scheduleSync)
+
+    return () => {
+      root.removeEventListener('scroll', scheduleSync)
+      root.removeEventListener('scrollend', scheduleSync)
+      cancelAnimationFrame(raf)
+      if (scrollEndTimer) clearTimeout(scrollEndTimer)
+    }
+  }, [feed.length, playActive])
 
   const activeListingId = feed[activeIndex]?.id
 
@@ -176,7 +190,14 @@ export function ReelsPage() {
     }
 
     stopAllExcept(activeIndex)
-    playActive()
+
+    let outerRaf = 0
+    let innerRaf = 0
+    outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => {
+        playActive()
+      })
+    })
 
     const active = listingsRef.current[activeIndex]
     if (active) {
@@ -187,6 +208,11 @@ export function ReelsPage() {
         completed: false,
       }
       lastTickRef.current = 0
+    }
+
+    return () => {
+      cancelAnimationFrame(outerRaf)
+      cancelAnimationFrame(innerRaf)
     }
   }, [activeIndex, activeListingId, playActive, stopAllExcept])
 
