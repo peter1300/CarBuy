@@ -1,49 +1,77 @@
-/** Low-level helpers for TikTok-style muted autoplay. */
+/** TikTok-style muted autoplay helpers for Reels. */
 
 export function pauseVideo(video: HTMLVideoElement) {
-  video.pause()
+  try {
+    video.pause()
+  } catch {
+    // ignore
+  }
 }
 
 export function rewindVideo(video: HTMLVideoElement) {
   try {
-    if (video.currentTime !== 0) video.currentTime = 0
+    if (video.currentTime > 0.01) video.currentTime = 0
   } catch {
-    // ignore seek errors
+    // ignore
   }
 }
 
-function seekToStart(video: HTMLVideoElement): Promise<void> {
-  if (video.currentTime < 0.05) return Promise.resolve()
-
+function waitForEvent(
+  video: HTMLVideoElement,
+  eventName: 'seeked' | 'canplay' | 'loadeddata',
+  timeoutMs: number,
+): Promise<void> {
   return new Promise((resolve) => {
-    const done = () => {
-      video.removeEventListener('seeked', done)
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      video.removeEventListener(eventName, finish)
       window.clearTimeout(timer)
       resolve()
     }
-    const timer = window.setTimeout(done, 500)
-    video.addEventListener('seeked', done)
-    try {
-      video.currentTime = 0
-    } catch {
-      done()
-    }
+    const timer = window.setTimeout(finish, timeoutMs)
+    video.addEventListener(eventName, finish)
   })
 }
 
+async function ensureCanPlay(video: HTMLVideoElement): Promise<void> {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return
+  await Promise.race([
+    waitForEvent(video, 'loadeddata', 4000),
+    waitForEvent(video, 'canplay', 4000),
+  ])
+}
+
+async function seekToStart(video: HTMLVideoElement): Promise<void> {
+  if (video.currentTime < 0.05) return
+  const seek = waitForEvent(video, 'seeked', 600)
+  try {
+    video.currentTime = 0
+  } catch {
+    return
+  }
+  await seek
+}
+
+export type PlayReelOptions = {
+  /** Rewind to 0 before playing. Prefer false when already rewound on slide leave. */
+  fromStart?: boolean
+  allowSound?: boolean
+  /** Return false if this play attempt was superseded. */
+  isCurrent: () => boolean
+}
+
 /**
- * Play a reel clip. Always attempts muted first (required for mobile autoplay),
- * then optionally unmutes if the user already enabled sound.
+ * Play one reel. Always starts muted (mobile autoplay policy), then may unmute.
  *
- * Critical: if we seek to 0, we MUST wait for `seeked` before play().
- * Otherwise mobile browsers show the first frame and stay paused (AbortError).
+ * Overlapping seek+play without guarding is what left videos stuck on the first frame.
  */
 export async function playReelVideo(
   video: HTMLVideoElement,
-  options: { fromStart?: boolean; allowSound?: boolean; signal?: { cancelled: boolean } },
-): Promise<void> {
-  const { fromStart = false, allowSound = false, signal } = options
-  if (signal?.cancelled) return
+  options: PlayReelOptions,
+): Promise<boolean> {
+  const { fromStart = false, allowSound = false, isCurrent } = options
 
   video.playsInline = true
   video.setAttribute('playsinline', '')
@@ -52,33 +80,34 @@ export async function playReelVideo(
   video.muted = true
   video.volume = 1
 
+  await ensureCanPlay(video)
+  if (!isCurrent()) return false
+
   if (fromStart) {
     await seekToStart(video)
-  }
-
-  if (signal?.cancelled) return
-
-  const tryPlay = async () => {
-    if (signal?.cancelled) return
-    await video.play()
+    if (!isCurrent()) return false
   }
 
   try {
-    await tryPlay()
+    await video.play()
   } catch {
-    if (signal?.cancelled) return
+    if (!isCurrent()) return false
     video.muted = true
     try {
-      await tryPlay()
+      await video.play()
     } catch {
-      return
+      return false
     }
   }
 
-  if (signal?.cancelled) return
+  if (!isCurrent()) {
+    pauseVideo(video)
+    return false
+  }
 
-  // Sound only after a successful muted play, and only if user asked for it.
   if (allowSound) {
     video.muted = false
   }
+
+  return !video.paused
 }

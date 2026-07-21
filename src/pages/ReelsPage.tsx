@@ -37,9 +37,13 @@ function flushWatch(session: SessionWatch, listing: Listing | undefined) {
 }
 
 /**
- * TikTok-style Reels:
- * - swipe → next video autoplays from the start (muted)
- * - stay → clip restarts from the start when it ends
+ * Root cause of "first frame, no play":
+ * Competing play attempts cancelled each other mid-seek (effect cleanup + onLoadedData),
+ * so play() never completed and the clip stayed paused on frame 0.
+ *
+ * This rewrite uses a single generation counter, IntersectionObserver for the active
+ * slide, and never cancels an in-flight play except by superseding the generation
+ * when the user actually moves to another slide.
  */
 export function ReelsPage() {
   const { listings, loading, error } = useListings()
@@ -47,7 +51,6 @@ export function ReelsPage() {
   const { t, locale, browseCountry } = useLocale()
 
   const [statsReady, setStatsReady] = useState(false)
-  const [statsVersion, setStatsVersion] = useState(0)
   const [statsMap, setStatsMap] = useState(() => new Map<string, ReelStats>())
   const [activeIndex, setActiveIndex] = useState(0)
   const [isMuted, setIsMuted] = useState(true)
@@ -60,7 +63,8 @@ export function ReelsPage() {
   const feedRef = useRef<Listing[]>([])
   const sessionRef = useRef<SessionWatch | null>(null)
   const lastTickRef = useRef(0)
-  const playSignalRef = useRef<{ cancelled: boolean }>({ cancelled: false })
+  const playGenRef = useRef(0)
+  const lockedFeedRef = useRef<Listing[] | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -69,18 +73,37 @@ export function ReelsPage() {
       if (cancelled) return
       setStatsMap(map)
       setStatsReady(true)
-      setStatsVersion((v) => v + 1)
     })()
     return () => {
       cancelled = true
     }
   }, [])
 
-  const feed = useMemo(() => {
-    const prefs = loadReelPrefs()
-    return rankReelsFeed(listings, statsMap, prefs)
+  const ranked = useMemo(() => {
+    if (!statsReady) return [] as Listing[]
+    return rankReelsFeed(listings, statsMap, loadReelPrefs())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listings, statsMap, statsVersion, favoriteIds])
+  }, [listings, statsMap, statsReady, favoriteIds])
+
+  // Lock slide order for this page visit so random re-rank doesn't reshuffle under the scroller.
+  const feed = useMemo(() => {
+    if (ranked.length === 0) {
+      lockedFeedRef.current = null
+      return [] as Listing[]
+    }
+    const prev = lockedFeedRef.current
+    if (!prev || prev.length === 0) {
+      lockedFeedRef.current = ranked
+      return ranked
+    }
+    const byId = new Map(ranked.map((item) => [item.id, item]))
+    const kept = prev.map((item) => byId.get(item.id)).filter((item): item is Listing => Boolean(item))
+    const keptIds = new Set(kept.map((item) => item.id))
+    const added = ranked.filter((item) => !keptIds.has(item.id))
+    const next = [...kept, ...added]
+    lockedFeedRef.current = next
+    return next
+  }, [ranked])
 
   feedRef.current = feed
   activeIndexRef.current = activeIndex
@@ -115,45 +138,59 @@ export function ReelsPage() {
     lastTickRef.current = 0
   }, [])
 
-  const pauseAllExcept = useCallback((keepIndex: number) => {
-    videoRefs.current.forEach((video, index) => {
-      if (!video || index === keepIndex) return
+  const playActive = useCallback((index: number, fromStart: boolean) => {
+    const generation = ++playGenRef.current
+
+    videoRefs.current.forEach((video, videoIndex) => {
+      if (!video || videoIndex === index) return
       pauseVideo(video)
+    })
+
+    const video = videoRefs.current[index]
+    if (!video) return
+
+    void playReelVideo(video, {
+      fromStart,
+      allowSound: !isMutedRef.current,
+      isCurrent: () => playGenRef.current === generation && activeIndexRef.current === index,
+    }).then((ok) => {
+      if (!ok) return
+      if (video.muted && !isMutedRef.current) {
+        isMutedRef.current = true
+        setIsMuted(true)
+      }
     })
   }, [])
 
-  const startActivePlayback = useCallback(
-    (index: number, fromStart: boolean) => {
-      playSignalRef.current.cancelled = true
-      const signal = { cancelled: false }
-      playSignalRef.current = signal
+  const goToIndex = useCallback(
+    (next: number) => {
+      const max = feedRef.current.length - 1
+      if (max < 0) return
+      const clamped = Math.max(0, Math.min(next, max))
+      if (clamped === activeIndexRef.current) return
 
-      pauseAllExcept(index)
+      const prev = videoRefs.current[activeIndexRef.current]
+      if (prev) {
+        pauseVideo(prev)
+        rewindVideo(prev)
+      }
 
-      const video = videoRefs.current[index]
-      if (!video) return
+      // Invalidate any in-flight play for the previous slide.
+      playGenRef.current += 1
 
-      void playReelVideo(video, {
-        fromStart,
-        allowSound: !isMutedRef.current,
-        signal,
-      }).then(() => {
-        if (signal.cancelled) return
-        // If browser forced mute during play, keep UI in sync.
-        if (video.muted && !isMutedRef.current) {
-          isMutedRef.current = true
-          setIsMuted(true)
-        }
-      })
+      endSession()
+      activeIndexRef.current = clamped
+      setActiveIndex(clamped)
+      startSession(clamped)
     },
-    [pauseAllExcept],
+    [endSession, startSession],
   )
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
     return () => {
       document.body.classList.remove('reels-mode')
-      playSignalRef.current.cancelled = true
+      playGenRef.current += 1
       videoRefs.current.forEach((video) => {
         if (video) pauseVideo(video)
       })
@@ -161,69 +198,90 @@ export function ReelsPage() {
     }
   }, [endSession])
 
-  // Detect active slide from scroll position (scroll-snap).
+  // Primary: IntersectionObserver — most reliable with scroll-snap on mobile.
   useEffect(() => {
     const root = scrollerRef.current
     if (!root || feed.length === 0) return
 
-    const readIndex = () => {
-      const height = root.clientHeight
-      if (height <= 0) return 0
-      return Math.max(0, Math.min(feed.length - 1, Math.round(root.scrollTop / height)))
-    }
+    const ratios = new Map<number, number>()
 
-    let raf = 0
-    let settleTimer: ReturnType<typeof setTimeout> | undefined
-
-    const apply = () => {
-      const next = readIndex()
-      if (next === activeIndexRef.current) return
-
-      const prevVideo = videoRefs.current[activeIndexRef.current]
-      if (prevVideo) {
-        pauseVideo(prevVideo)
-        rewindVideo(prevVideo)
+    const pick = () => {
+      let bestIndex = activeIndexRef.current
+      let bestRatio = 0
+      ratios.forEach((ratio, index) => {
+        if (ratio > bestRatio) {
+          bestRatio = ratio
+          bestIndex = index
+        }
+      })
+      if (bestRatio >= 0.55) {
+        goToIndex(bestIndex)
+        return
       }
 
-      endSession()
-      activeIndexRef.current = next
-      setActiveIndex(next)
-      startSession(next)
+      // Fallback while mid-swipe: nearest slide by geometry.
+      const rootRect = root.getBoundingClientRect()
+      const center = rootRect.top + rootRect.height / 2
+      let nearest = bestIndex
+      let nearestDist = Number.POSITIVE_INFINITY
+      root.querySelectorAll<HTMLElement>('[data-reel-index]').forEach((slide) => {
+        const index = Number(slide.dataset.reelIndex)
+        if (!Number.isFinite(index)) return
+        const rect = slide.getBoundingClientRect()
+        const dist = Math.abs(rect.top + rect.height / 2 - center)
+        if (dist < nearestDist) {
+          nearestDist = dist
+          nearest = index
+        }
+      })
+      goToIndex(nearest)
     }
 
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = Number((entry.target as HTMLElement).dataset.reelIndex)
+          if (Number.isFinite(index)) ratios.set(index, entry.intersectionRatio)
+        }
+        pick()
+      },
+      { root, threshold: [0, 0.25, 0.55, 0.75, 1] },
+    )
+
+    root.querySelectorAll<HTMLElement>('[data-reel-index]').forEach((slide) => observer.observe(slide))
+
+    let raf = 0
     const onScroll = () => {
       cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(apply)
-      if (settleTimer) clearTimeout(settleTimer)
-      settleTimer = setTimeout(apply, 80)
+      raf = requestAnimationFrame(pick)
     }
-
     root.addEventListener('scroll', onScroll, { passive: true })
-    root.addEventListener('scrollend', apply)
+    root.addEventListener('scrollend', pick)
 
     return () => {
+      observer.disconnect()
       root.removeEventListener('scroll', onScroll)
-      root.removeEventListener('scrollend', apply)
+      root.removeEventListener('scrollend', pick)
       cancelAnimationFrame(raf)
-      if (settleTimer) clearTimeout(settleTimer)
     }
-  }, [endSession, feed.length, startSession])
+  }, [feed.length, goToIndex])
 
-  // Autoplay whenever the active slide changes (or feed first appears).
+  // Autoplay the active slide. Do NOT cancel via cleanup flag mid-play —
+  // only goToIndex / unmount bumps playGenRef.
   useEffect(() => {
     if (feed.length === 0) return
     if (!sessionRef.current) startSession(activeIndex)
 
-    // Defer one frame so the active <video> ref and attributes are committed.
-    const id = window.requestAnimationFrame(() => {
-      startActivePlayback(activeIndex, true)
-    })
+    const timer = window.setTimeout(() => {
+      // fromStart=false: slide leave already rewound the previous clip;
+      // new slides start at 0. Avoid seek-before-play races.
+      playActive(activeIndex, false)
+    }, 0)
 
     return () => {
-      window.cancelAnimationFrame(id)
-      playSignalRef.current.cancelled = true
+      window.clearTimeout(timer)
     }
-  }, [activeIndex, feed.length, startActivePlayback, startSession])
+  }, [activeIndex, feed.length, playActive, startSession])
 
   useEffect(() => {
     const video = videoRefs.current[activeIndexRef.current]
@@ -266,7 +324,7 @@ export function ReelsPage() {
     const video = videoRefs.current[activeIndexRef.current]
     if (!video) return
     if (video.paused) {
-      startActivePlayback(activeIndexRef.current, false)
+      playActive(activeIndexRef.current, false)
     } else {
       pauseVideo(video)
     }
@@ -324,13 +382,16 @@ export function ReelsPage() {
                 poster={listing.videoPoster}
                 playsInline
                 muted={isMuted || !isActive}
-                autoPlay={isActive}
+                loop={false}
                 preload={nearActive ? 'auto' : 'metadata'}
                 controls={false}
-                onLoadedData={() => {
+                onCanPlay={() => {
+                  // Soft nudge only — never bump playGen / cancel the main play.
                   if (index !== activeIndexRef.current) return
                   const video = videoRefs.current[index]
-                  if (video?.paused) startActivePlayback(index, false)
+                  if (!video || !video.paused) return
+                  video.muted = true
+                  void video.play().catch(() => undefined)
                 }}
                 onClick={togglePauseActive}
                 onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
@@ -342,10 +403,7 @@ export function ReelsPage() {
                     session.watchMs = Math.max(session.watchMs, (video.duration || 0) * 1000)
                   }
                   if (index !== activeIndexRef.current) return
-                  void playReelVideo(video, {
-                    fromStart: true,
-                    allowSound: !isMutedRef.current,
-                  })
+                  playActive(index, true)
                 }}
               />
 

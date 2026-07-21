@@ -4433,7 +4433,8 @@ textarea.is-locked:disabled {
   .reels-scroller {
     width: min(100%, 420px);
     border-radius: 18px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     box-shadow: var(--shadow-lg);
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
