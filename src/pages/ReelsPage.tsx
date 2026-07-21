@@ -18,6 +18,15 @@ import { pauseVideo, playReelVideo, rewindVideo } from '../lib/reelsPlayback'
 import { FavoriteButton } from '../components/FavoriteButton'
 import { StatusBadge } from '../components/StatusBadge'
 
+/** How many upcoming clips to buffer while the current one plays. */
+const PRELOAD_AHEAD = 5
+/** Keep one previous clip warm for swipe-back. */
+const PRELOAD_BEHIND = 1
+
+function inPreloadWindow(index: number, active: number) {
+  return index >= active - PRELOAD_BEHIND && index <= active + PRELOAD_AHEAD
+}
+
 type SessionWatch = {
   listingId: string
   watchMs: number
@@ -65,6 +74,7 @@ export function ReelsPage() {
   const lastTickRef = useRef(0)
   const playGenRef = useRef(0)
   const lockedFeedRef = useRef<Listing[] | null>(null)
+  const warmedIndexesRef = useRef(new Set<number>())
 
   useEffect(() => {
     let cancelled = false
@@ -283,6 +293,40 @@ export function ReelsPage() {
     }
   }, [activeIndex, feed.length, playActive, startSession])
 
+  // Buffer the next few clips (and one behind) while the active video plays.
+  useEffect(() => {
+    if (feed.length === 0) return
+
+    const start = Math.max(0, activeIndex - PRELOAD_BEHIND)
+    const end = Math.min(feed.length - 1, activeIndex + PRELOAD_AHEAD)
+
+    for (let index = 0; index < feed.length; index++) {
+      const video = videoRefs.current[index]
+      if (!video) continue
+
+      if (index >= start && index <= end) {
+        video.preload = 'auto'
+        // Kick off download for upcoming clips that have not buffered yet.
+        // Skip the active one — it is already playing / loading via playActive.
+        if (
+          index !== activeIndex &&
+          video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA &&
+          !warmedIndexesRef.current.has(index)
+        ) {
+          warmedIndexesRef.current.add(index)
+          try {
+            video.load()
+          } catch {
+            // ignore
+          }
+        }
+      } else {
+        video.preload = 'none'
+        warmedIndexesRef.current.delete(index)
+      }
+    }
+  }, [activeIndex, feed.length])
+
   useEffect(() => {
     const video = videoRefs.current[activeIndexRef.current]
     if (!video) return
@@ -366,7 +410,7 @@ export function ReelsPage() {
         {feed.map((listing, index) => {
           const title = formatListingTitle(listing)
           const isActive = index === activeIndex
-          const nearActive = Math.abs(index - activeIndex) <= 1
+          const preload = inPreloadWindow(index, activeIndex)
 
           return (
             <section
@@ -383,7 +427,7 @@ export function ReelsPage() {
                 playsInline
                 muted={isMuted || !isActive}
                 loop={false}
-                preload={nearActive ? 'auto' : 'metadata'}
+                preload={preload ? 'auto' : 'none'}
                 controls={false}
                 onCanPlay={() => {
                   // Soft nudge only — never bump playGen / cancel the main play.
