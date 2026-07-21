@@ -35,6 +35,33 @@ function flushWatch(session: SessionWatch, listing: Listing | undefined) {
   })
 }
 
+function findActiveSlideIndex(scroller: HTMLElement): number {
+  const slides = scroller.querySelectorAll<HTMLElement>('[data-reel-index]')
+  if (slides.length === 0) return 0
+
+  const scrollerRect = scroller.getBoundingClientRect()
+  const viewportCenter = scrollerRect.top + scrollerRect.height / 2
+
+  let bestIndex = 0
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  slides.forEach((slide) => {
+    const index = Number(slide.dataset.reelIndex)
+    if (!Number.isFinite(index)) return
+
+    const rect = slide.getBoundingClientRect()
+    const slideCenter = rect.top + rect.height / 2
+    const distance = Math.abs(slideCenter - viewportCenter)
+
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestIndex = index
+    }
+  })
+
+  return bestIndex
+}
+
 export function ReelsPage() {
   const { listings, loading, error } = useListings()
   const { favoriteIds } = useFavorites()
@@ -46,13 +73,12 @@ export function ReelsPage() {
   const [isMuted, setIsMuted] = useState(true)
 
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const videoByIdRef = useRef(new Map<string, HTMLVideoElement>())
+  const activeVideoRef = useRef<HTMLVideoElement>(null)
   const sessionRef = useRef<SessionWatch | null>(null)
   const lastTickRef = useRef(0)
   const feedRef = useRef<Listing[]>([])
   const activeIndexRef = useRef(0)
   const isMutedRef = useRef(true)
-  const playTokenRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -79,30 +105,38 @@ export function ReelsPage() {
   activeIndexRef.current = activeIndex
   isMutedRef.current = isMuted
 
-  const getVideoAt = useCallback((index: number) => {
-    const listing = feedRef.current[index]
-    if (!listing) return null
-    return videoByIdRef.current.get(listing.id) ?? null
+  const flushCurrentWatch = useCallback(() => {
+    const prev = sessionRef.current
+    if (!prev) return
+    const listing = feedRef.current.find((l) => l.id === prev.listingId)
+    flushWatch(prev, listing)
+    sessionRef.current = null
   }, [])
 
-  const pauseAllVideos = useCallback(() => {
-    videoByIdRef.current.forEach((video) => {
-      video.pause()
-      video.muted = true
-      video.volume = 0
-    })
+  const beginWatchSession = useCallback((index: number) => {
+    const active = feedRef.current[index]
+    if (!active) return
+    sessionRef.current = {
+      listingId: active.id,
+      watchMs: 0,
+      durationMs: 0,
+      completed: false,
+    }
+    lastTickRef.current = 0
   }, [])
 
-  const startVideo = useCallback((video: HTMLVideoElement, allowSound: boolean, index: number) => {
+  const playActiveVideo = useCallback(() => {
+    const video = activeVideoRef.current
+    if (!video) return
+
+    video.muted = isMutedRef.current
     video.volume = 1
-    video.muted = !allowSound
 
     const attempt = () => {
-      if (index !== activeIndexRef.current) return
       void video.play().catch(() => {
-        if (index !== activeIndexRef.current) return
         video.muted = true
-        video.volume = 1
+        isMutedRef.current = true
+        setIsMuted(true)
         void video.play().catch(() => undefined)
       })
     }
@@ -121,142 +155,115 @@ export function ReelsPage() {
     video.addEventListener('loadeddata', onReady, { once: true })
   }, [])
 
-  const playCurrentVideo = useCallback(() => {
-    const index = activeIndexRef.current
-    const token = ++playTokenRef.current
-
-    pauseAllVideos()
-
-    const video = getVideoAt(index)
-    if (!video) return
-
-    startVideo(video, !isMutedRef.current, index)
-
-    // Safety net: if another slide took over, stop this one.
-    void Promise.resolve().then(() => {
-      if (playTokenRef.current !== token) {
-        video.pause()
-        video.muted = true
-        video.volume = 0
-      }
-    })
-  }, [getVideoAt, pauseAllVideos, startVideo])
-
-  const beginWatchSession = useCallback((index: number) => {
-    const active = feedRef.current[index]
-    if (!active) return
-    sessionRef.current = {
-      listingId: active.id,
-      watchMs: 0,
-      durationMs: 0,
-      completed: false,
-    }
-    lastTickRef.current = 0
-  }, [])
-
-  const flushCurrentWatch = useCallback(() => {
-    const prev = sessionRef.current
-    if (!prev) return
-    const listing = feedRef.current.find((l) => l.id === prev.listingId)
-    flushWatch(prev, listing)
-    sessionRef.current = null
-  }, [])
-
-  const activateSlide = useCallback(
-    (index: number, { syncState = true }: { syncState?: boolean } = {}) => {
+  const goToSlide = useCallback(
+    (index: number, { scroll = false }: { scroll?: boolean } = {}) => {
       const max = feedRef.current.length - 1
       if (max < 0) return
       const clamped = Math.max(0, Math.min(index, max))
-
-      const indexChanged = clamped !== activeIndexRef.current
-      if (indexChanged) {
-        flushCurrentWatch()
-        pauseAllVideos()
-        activeIndexRef.current = clamped
-        if (syncState) setActiveIndex(clamped)
-        beginWatchSession(clamped)
+      if (clamped === activeIndexRef.current) {
+        playActiveVideo()
+        return
       }
 
-      requestAnimationFrame(() => {
-        const current = getVideoAt(clamped)
-        if (indexChanged || current?.paused) {
-          playCurrentVideo()
+      flushCurrentWatch()
+      activeIndexRef.current = clamped
+      setActiveIndex(clamped)
+      beginWatchSession(clamped)
+
+      if (scroll) {
+        const root = scrollerRef.current
+        if (root) {
+          const slide = root.querySelector<HTMLElement>(`[data-reel-index="${clamped}"]`)
+          slide?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
-      })
-    },
-    [beginWatchSession, flushCurrentWatch, getVideoAt, pauseAllVideos, playCurrentVideo],
-  )
-
-  const videoRefCallbacks = useRef(new Map<string, (el: HTMLVideoElement | null) => void>())
-
-  const getVideoRef = useCallback((listingId: string) => {
-    let callback = videoRefCallbacks.current.get(listingId)
-    if (!callback) {
-      callback = (el: HTMLVideoElement | null) => {
-        if (el) videoByIdRef.current.set(listingId, el)
-        else videoByIdRef.current.delete(listingId)
       }
-      videoRefCallbacks.current.set(listingId, callback)
-    }
-    return callback
-  }, [])
+    },
+    [beginWatchSession, flushCurrentWatch, playActiveVideo],
+  )
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
     return () => {
       document.body.classList.remove('reels-mode')
-      pauseAllVideos()
+      activeVideoRef.current?.pause()
       flushCurrentWatch()
     }
-  }, [flushCurrentWatch, pauseAllVideos])
+  }, [flushCurrentWatch])
 
   useEffect(() => {
     const root = scrollerRef.current
     if (!root || feed.length === 0) return
 
+    const ratios = new Map<number, number>()
+
+    const pickActive = () => {
+      let bestIndex = findActiveSlideIndex(root)
+      let bestRatio = 0
+      ratios.forEach((ratio, index) => {
+        if (ratio > bestRatio) {
+          bestRatio = ratio
+          bestIndex = index
+        }
+      })
+      const index = bestRatio >= 0.5 ? bestIndex : findActiveSlideIndex(root)
+      if (index !== activeIndexRef.current) {
+        goToSlide(index)
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const index = Number((entry.target as HTMLElement).dataset.reelIndex)
+          if (Number.isFinite(index)) ratios.set(index, entry.intersectionRatio)
+        })
+        pickActive()
+      },
+      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
+    )
+
+    root.querySelectorAll<HTMLElement>('[data-reel-index]').forEach((slide) => observer.observe(slide))
+
     let raf = 0
     let scrollEndTimer: ReturnType<typeof setTimeout> | undefined
 
-    const syncActiveFromScroll = () => {
-      const slideHeight = root.clientHeight
-      if (slideHeight <= 0) return
-      const index = Math.round(root.scrollTop / slideHeight)
-      activateSlide(index)
-    }
-
-    const scheduleSync = () => {
+    const schedulePick = () => {
       cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(syncActiveFromScroll)
+      raf = requestAnimationFrame(pickActive)
       if (scrollEndTimer) clearTimeout(scrollEndTimer)
-      scrollEndTimer = setTimeout(syncActiveFromScroll, 80)
+      scrollEndTimer = setTimeout(pickActive, 60)
     }
 
-    root.addEventListener('scroll', scheduleSync, { passive: true })
-    root.addEventListener('scrollend', scheduleSync)
+    root.addEventListener('scroll', schedulePick, { passive: true })
+    root.addEventListener('scrollend', schedulePick)
 
     return () => {
-      root.removeEventListener('scroll', scheduleSync)
-      root.removeEventListener('scrollend', scheduleSync)
+      observer.disconnect()
+      root.removeEventListener('scroll', schedulePick)
+      root.removeEventListener('scrollend', schedulePick)
       cancelAnimationFrame(raf)
       if (scrollEndTimer) clearTimeout(scrollEndTimer)
     }
-  }, [activateSlide, feed.length])
+  }, [feed.length, goToSlide])
 
   useEffect(() => {
     if (feed.length === 0) return
     activeIndexRef.current = 0
     setActiveIndex(0)
     beginWatchSession(0)
-    activateSlide(0, { syncState: false })
+    requestAnimationFrame(() => playActiveVideo())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feed.length])
 
   useEffect(() => {
-    const video = getVideoAt(activeIndexRef.current)
-    if (!video) return
-    video.muted = isMutedRef.current
-    video.volume = 1
-  }, [isMuted, getVideoAt])
+    playActiveVideo()
+  }, [activeIndex, playActiveVideo])
+
+  useEffect(() => {
+    if (activeVideoRef.current) {
+      activeVideoRef.current.muted = isMuted
+    }
+  }, [isMuted])
 
   const onTimeUpdate = (listingId: string, video: HTMLVideoElement) => {
     const session = sessionRef.current
@@ -275,9 +282,8 @@ export function ReelsPage() {
     }
   }
 
-  const toggleMute = (index: number) => {
-    if (index !== activeIndexRef.current) return
-    const video = getVideoAt(index)
+  const toggleMute = () => {
+    const video = activeVideoRef.current
     if (!video) return
     const nextMuted = !isMuted
     setIsMuted(nextMuted)
@@ -332,49 +338,54 @@ export function ReelsPage() {
               data-reel-index={index}
               aria-label={title}
             >
-              <video
-                ref={getVideoRef(listing.id)}
-                className="reel-slide__video"
-                src={listing.videoUrl}
-                poster={listing.videoPoster}
-                playsInline
-                muted={!isActive || isMuted}
-                loop
-                preload={Math.abs(index - activeIndex) <= 1 ? 'auto' : 'metadata'}
-                onCanPlay={() => {
-                  if (index !== activeIndexRef.current) return
-                  playCurrentVideo()
-                }}
-                onClick={() => {
-                  if (index !== activeIndexRef.current) {
-                    const root = scrollerRef.current
-                    if (root) {
-                      root.scrollTo({ top: index * root.clientHeight, behavior: 'smooth' })
+              {isActive ? (
+                <video
+                  key={listing.id}
+                  ref={activeVideoRef}
+                  className="reel-slide__video"
+                  src={listing.videoUrl}
+                  poster={listing.videoPoster}
+                  playsInline
+                  muted={isMuted}
+                  loop
+                  preload="auto"
+                  onCanPlay={playActiveVideo}
+                  onClick={() => {
+                    const video = activeVideoRef.current
+                    if (!video) return
+                    if (video.paused) {
+                      playActiveVideo()
+                    } else {
+                      video.pause()
                     }
-                    activateSlide(index)
-                    return
-                  }
-                  const video = getVideoAt(index)
-                  if (!video) return
-                  if (video.paused) {
-                    playCurrentVideo()
-                  } else {
-                    video.pause()
-                  }
-                }}
-                onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
-                onEnded={(e) => {
-                  const session = sessionRef.current
-                  if (session?.listingId === listing.id) {
-                    session.completed = true
-                    session.watchMs = Math.max(
-                      session.watchMs,
-                      (e.currentTarget.duration || 0) * 1000,
-                    )
-                  }
-                }}
-                controls={false}
-              />
+                  }}
+                  onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
+                  onEnded={(e) => {
+                    const session = sessionRef.current
+                    if (session?.listingId === listing.id) {
+                      session.completed = true
+                      session.watchMs = Math.max(
+                        session.watchMs,
+                        (e.currentTarget.duration || 0) * 1000,
+                      )
+                    }
+                  }}
+                  controls={false}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="reel-slide__poster"
+                  onClick={() => goToSlide(index, { scroll: true })}
+                  aria-label={title}
+                >
+                  {listing.videoPoster ? (
+                    <img src={listing.videoPoster} alt="" className="reel-slide__video" />
+                  ) : (
+                    <div className="reel-slide__video reel-slide__video--placeholder" />
+                  )}
+                </button>
+              )}
 
               <div className="reel-slide__gradient" aria-hidden="true" />
 
@@ -398,14 +409,16 @@ export function ReelsPage() {
                   <Link to={listingPath(listing)} className="btn btn--accent btn--lg">
                     {t('reels.listing')}
                   </Link>
-                  <button
-                    type="button"
-                    className="btn btn--outline btn--lg"
-                    onClick={() => toggleMute(index)}
-                    aria-pressed={!isMuted && isActive}
-                  >
-                    {isMuted || !isActive ? t('reels.unmute') : t('reels.mute')}
-                  </button>
+                  {isActive && (
+                    <button
+                      type="button"
+                      className="btn btn--outline btn--lg"
+                      onClick={toggleMute}
+                      aria-pressed={!isMuted}
+                    >
+                      {isMuted ? t('reels.unmute') : t('reels.mute')}
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
