@@ -35,23 +35,21 @@ function flushWatch(session: SessionWatch, listing: Listing | undefined) {
   })
 }
 
-function stopVideo(video: HTMLVideoElement) {
+function hardStop(video: HTMLVideoElement) {
   video.pause()
   video.muted = true
   video.volume = 0
   try {
     video.currentTime = 0
   } catch {
-    // ignore seek errors on unloaded media
+    // ignore
   }
 }
 
 /**
- * Reels playback model:
- * - Every slide keeps its <video> mounted (no remount on swipe).
- * - Exactly one video may play; all others are hard-stopped.
- * - Active slide is derived from scroll-snap position.
- * - Playback sync runs in useLayoutEffect so refs exist before paint.
+ * Expected behavior:
+ * 1) Swipe to next slide → that video starts automatically from the beginning.
+ * 2) Stay on a slide → when it ends, it restarts from the beginning.
  */
 export function ReelsPage() {
   const { listings, loading, error } = useListings()
@@ -65,13 +63,13 @@ export function ReelsPage() {
   const [isMuted, setIsMuted] = useState(true)
 
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const videoNodes = useRef(new Map<number, HTMLVideoElement>())
+  const videosRef = useRef(new Map<number, HTMLVideoElement>())
   const activeIndexRef = useRef(0)
   const isMutedRef = useRef(true)
   const feedRef = useRef<Listing[]>([])
   const sessionRef = useRef<SessionWatch | null>(null)
   const lastTickRef = useRef(0)
-  const playGenRef = useRef(0)
+  const playTokenRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -98,8 +96,8 @@ export function ReelsPage() {
   isMutedRef.current = isMuted
 
   const registerVideo = useCallback((index: number, node: HTMLVideoElement | null) => {
-    if (node) videoNodes.current.set(index, node)
-    else videoNodes.current.delete(index)
+    if (node) videosRef.current.set(index, node)
+    else videosRef.current.delete(index)
   }, [])
 
   const endSession = useCallback(() => {
@@ -122,112 +120,182 @@ export function ReelsPage() {
     lastTickRef.current = 0
   }, [])
 
-  const syncPlayback = useCallback((index: number, muted: boolean) => {
-    const generation = ++playGenRef.current
+  /** Stop every video except the active one, then play the active clip. */
+  const playSlide = useCallback((index: number, options?: { fromStart?: boolean }) => {
+    const token = ++playTokenRef.current
+    const fromStart = options?.fromStart ?? false
 
-    videoNodes.current.forEach((video, videoIndex) => {
+    videosRef.current.forEach((video, videoIndex) => {
       if (videoIndex === index) return
-      stopVideo(video)
+      hardStop(video)
     })
 
-    const video = videoNodes.current.get(index)
+    const video = videosRef.current.get(index)
     if (!video) return
 
     video.volume = 1
-    video.muted = muted
+    video.muted = isMutedRef.current
+    video.playsInline = true
     video.setAttribute('playsinline', '')
     video.setAttribute('webkit-playsinline', '')
 
-    const tryPlay = () => {
-      if (generation !== playGenRef.current) return
-      if (activeIndexRef.current !== index) return
-
-      const run = () => {
-        if (generation !== playGenRef.current) return
-        if (activeIndexRef.current !== index) return
-        void video.play().catch(() => {
-          if (generation !== playGenRef.current) return
-          video.muted = true
-          isMutedRef.current = true
-          setIsMuted(true)
-          void video.play().catch(() => undefined)
-        })
+    if (fromStart) {
+      try {
+        video.currentTime = 0
+      } catch {
+        // ignore
       }
-
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        run()
-        return
-      }
-
-      const onReady = () => {
-        video.removeEventListener('canplay', onReady)
-        video.removeEventListener('loadeddata', onReady)
-        run()
-      }
-      video.addEventListener('canplay', onReady)
-      video.addEventListener('loadeddata', onReady)
     }
 
-    tryPlay()
+    const attempt = () => {
+      if (token !== playTokenRef.current) return
+      if (activeIndexRef.current !== index) return
+
+      void video.play().catch(() => {
+        if (token !== playTokenRef.current) return
+        // Autoplay policy fallback: force mute and retry.
+        video.muted = true
+        isMutedRef.current = true
+        setIsMuted(true)
+        void video.play().catch(() => undefined)
+      })
+    }
+
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      attempt()
+      return
+    }
+
+    const onReady = () => {
+      video.removeEventListener('canplay', onReady)
+      video.removeEventListener('loadeddata', onReady)
+      attempt()
+    }
+    video.addEventListener('canplay', onReady)
+    video.addEventListener('loadeddata', onReady)
   }, [])
+
+  const setActiveSlide = useCallback(
+    (next: number) => {
+      const max = feedRef.current.length - 1
+      if (max < 0) return
+      const clamped = Math.max(0, Math.min(next, max))
+      if (clamped === activeIndexRef.current) return
+
+      endSession()
+      activeIndexRef.current = clamped
+      setActiveIndex(clamped)
+      startSession(clamped)
+    },
+    [endSession, startSession],
+  )
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
     return () => {
       document.body.classList.remove('reels-mode')
-      videoNodes.current.forEach(stopVideo)
+      videosRef.current.forEach(hardStop)
       endSession()
     }
   }, [endSession])
 
-  // Derive active slide from snap scroll position (stable on mobile).
+  // Active slide from scroll-snap + IntersectionObserver backup.
   useEffect(() => {
     const root = scrollerRef.current
     if (!root || feed.length === 0) return
 
-    const readIndex = () => {
+    const ratios = new Map<number, number>()
+
+    const indexFromScroll = () => {
       const height = root.clientHeight
       if (height <= 0) return 0
       return Math.max(0, Math.min(feed.length - 1, Math.round(root.scrollTop / height)))
     }
 
+    const pickActive = () => {
+      let bestIndex = indexFromScroll()
+      let bestRatio = -1
+      ratios.forEach((ratio, index) => {
+        if (ratio > bestRatio) {
+          bestRatio = ratio
+          bestIndex = index
+        }
+      })
+      if (bestRatio >= 0.55) {
+        setActiveSlide(bestIndex)
+        return
+      }
+      setActiveSlide(indexFromScroll())
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = Number((entry.target as HTMLElement).dataset.reelIndex)
+          if (Number.isFinite(index)) ratios.set(index, entry.intersectionRatio)
+        }
+        pickActive()
+      },
+      { root, threshold: [0, 0.35, 0.55, 0.75, 1] },
+    )
+
+    root.querySelectorAll<HTMLElement>('[data-reel-index]').forEach((slide) => {
+      observer.observe(slide)
+    })
+
     let raf = 0
     let settleTimer: ReturnType<typeof setTimeout> | undefined
 
-    const applyIndex = () => {
-      const next = readIndex()
-      if (next === activeIndexRef.current) return
-      endSession()
-      activeIndexRef.current = next
-      setActiveIndex(next)
-      startSession(next)
-    }
-
     const onScroll = () => {
       cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(applyIndex)
+      raf = requestAnimationFrame(pickActive)
       if (settleTimer) clearTimeout(settleTimer)
-      settleTimer = setTimeout(applyIndex, 120)
+      settleTimer = setTimeout(pickActive, 100)
     }
 
     root.addEventListener('scroll', onScroll, { passive: true })
-    root.addEventListener('scrollend', applyIndex)
-    applyIndex()
+    root.addEventListener('scrollend', pickActive)
 
     return () => {
+      observer.disconnect()
       root.removeEventListener('scroll', onScroll)
-      root.removeEventListener('scrollend', applyIndex)
+      root.removeEventListener('scrollend', pickActive)
       cancelAnimationFrame(raf)
       if (settleTimer) clearTimeout(settleTimer)
     }
-  }, [endSession, feed.length, startSession])
+  }, [feed.length, setActiveSlide])
 
-  // Keep session + playback aligned after feed arrives / active changes.
+  // Swipe / first load: start the active video from the beginning.
   useLayoutEffect(() => {
     if (feed.length === 0) return
     if (!sessionRef.current) startSession(activeIndex)
-    syncPlayback(activeIndex, isMuted)
-  }, [activeIndex, feed.length, isMuted, startSession, syncPlayback])
+    playSlide(activeIndex, { fromStart: true })
+  }, [activeIndex, feed.length, playSlide, startSession])
+
+  // Mute change should not rewind the clip.
+  useEffect(() => {
+    const video = videosRef.current.get(activeIndexRef.current)
+    if (!video) return
+    video.muted = isMuted
+    video.volume = 1
+  }, [isMuted])
+
+  const restartIfStillActive = (index: number, video: HTMLVideoElement) => {
+    if (index !== activeIndexRef.current) return
+    try {
+      video.currentTime = 0
+    } catch {
+      // ignore
+    }
+    video.muted = isMutedRef.current
+    video.volume = 1
+    void video.play().catch(() => {
+      video.muted = true
+      isMutedRef.current = true
+      setIsMuted(true)
+      void video.play().catch(() => undefined)
+    })
+  }
 
   const onTimeUpdate = (listingId: string, video: HTMLVideoElement) => {
     const session = sessionRef.current
@@ -248,7 +316,7 @@ export function ReelsPage() {
     const next = !isMuted
     setIsMuted(next)
     isMutedRef.current = next
-    const video = videoNodes.current.get(activeIndexRef.current)
+    const video = videosRef.current.get(activeIndexRef.current)
     if (!video) return
     video.muted = next
     video.volume = 1
@@ -258,10 +326,10 @@ export function ReelsPage() {
   }
 
   const togglePauseActive = () => {
-    const video = videoNodes.current.get(activeIndexRef.current)
+    const video = videosRef.current.get(activeIndexRef.current)
     if (!video) return
     if (video.paused) {
-      syncPlayback(activeIndexRef.current, isMutedRef.current)
+      playSlide(activeIndexRef.current, { fromStart: false })
     } else {
       video.pause()
     }
@@ -319,27 +387,27 @@ export function ReelsPage() {
                 poster={listing.videoPoster}
                 playsInline
                 muted={!isActive || isMuted}
-                loop
                 preload={nearActive ? 'auto' : 'metadata'}
                 controls={false}
                 onCanPlay={() => {
                   if (index !== activeIndexRef.current) return
-                  syncPlayback(index, isMutedRef.current)
-                }}
-                onLoadedData={() => {
-                  if (index !== activeIndexRef.current) return
-                  syncPlayback(index, isMutedRef.current)
+                  const video = videosRef.current.get(index)
+                  if (!video || !video.paused) return
+                  playSlide(index, { fromStart: false })
                 }}
                 onClick={togglePauseActive}
                 onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
                 onEnded={(e) => {
                   const session = sessionRef.current
-                  if (session?.listingId !== listing.id) return
-                  session.completed = true
-                  session.watchMs = Math.max(
-                    session.watchMs,
-                    (e.currentTarget.duration || 0) * 1000,
-                  )
+                  if (session?.listingId === listing.id) {
+                    session.completed = true
+                    session.watchMs = Math.max(
+                      session.watchMs,
+                      (e.currentTarget.duration || 0) * 1000,
+                    )
+                  }
+                  // Stay on slide → replay from the start.
+                  restartIfStillActive(index, e.currentTarget)
                 }}
               />
 
