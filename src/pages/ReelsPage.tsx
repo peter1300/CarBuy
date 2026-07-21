@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
@@ -43,15 +43,16 @@ export function ReelsPage() {
   const [statsVersion, setStatsVersion] = useState(0)
   const [statsMap, setStatsMap] = useState(() => new Map<string, ReelStats>())
   const [activeIndex, setActiveIndex] = useState(0)
-  /** Prefer muted until the user explicitly unmutes (browser autoplay-safe). */
   const [isMuted, setIsMuted] = useState(true)
+
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const videoByIdRef = useRef(new Map<string, HTMLVideoElement>())
   const sessionRef = useRef<SessionWatch | null>(null)
   const lastTickRef = useRef(0)
-  const listingsRef = useRef<Listing[]>([])
+  const feedRef = useRef<Listing[]>([])
   const activeIndexRef = useRef(0)
   const isMutedRef = useRef(true)
+  const playTokenRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -74,73 +75,140 @@ export function ReelsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listings, statsMap, statsVersion, favoriteIds])
 
-  listingsRef.current = feed
+  feedRef.current = feed
   activeIndexRef.current = activeIndex
   isMutedRef.current = isMuted
 
-  const stopAllExcept = useCallback((keepIndex: number) => {
-    videoRefs.current.forEach((video, index) => {
-      if (!video || index === keepIndex) return
+  const getVideoAt = useCallback((index: number) => {
+    const listing = feedRef.current[index]
+    if (!listing) return null
+    return videoByIdRef.current.get(listing.id) ?? null
+  }, [])
+
+  const pauseAllVideos = useCallback(() => {
+    videoByIdRef.current.forEach((video) => {
       video.pause()
       video.muted = true
-      try {
-        video.currentTime = 0
-      } catch {
-        // ignore seek errors on unloaded media
-      }
+      video.volume = 0
     })
   }, [])
 
-  const ensurePlaying = useCallback((video: HTMLVideoElement, allowSound: boolean) => {
-    const applyMute = () => {
-      video.muted = !allowSound
-    }
+  const startVideo = useCallback((video: HTMLVideoElement, allowSound: boolean, index: number) => {
+    video.volume = 1
+    video.muted = !allowSound
 
     const attempt = () => {
-      applyMute()
+      if (index !== activeIndexRef.current) return
       void video.play().catch(() => {
-        const retry = () => {
-          applyMute()
-          void video.play().catch(() => undefined)
-        }
-        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-          retry()
-          return
-        }
-        video.addEventListener('canplay', retry, { once: true })
-        video.addEventListener('loadeddata', retry, { once: true })
+        if (index !== activeIndexRef.current) return
+        video.muted = true
+        video.volume = 1
+        void video.play().catch(() => undefined)
       })
     }
 
-    attempt()
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      attempt()
+      return
+    }
+
+    const onReady = () => {
+      video.removeEventListener('canplay', onReady)
+      video.removeEventListener('loadeddata', onReady)
+      attempt()
+    }
+    video.addEventListener('canplay', onReady, { once: true })
+    video.addEventListener('loadeddata', onReady, { once: true })
   }, [])
 
-  const playActive = useCallback(() => {
+  const playCurrentVideo = useCallback(() => {
     const index = activeIndexRef.current
-    const video = videoRefs.current[index]
+    const token = ++playTokenRef.current
+
+    pauseAllVideos()
+
+    const video = getVideoAt(index)
     if (!video) return
 
-    stopAllExcept(index)
-    ensurePlaying(video, !isMutedRef.current)
-  }, [stopAllExcept, ensurePlaying])
+    startVideo(video, !isMutedRef.current, index)
+
+    // Safety net: if another slide took over, stop this one.
+    void Promise.resolve().then(() => {
+      if (playTokenRef.current !== token) {
+        video.pause()
+        video.muted = true
+        video.volume = 0
+      }
+    })
+  }, [getVideoAt, pauseAllVideos, startVideo])
+
+  const beginWatchSession = useCallback((index: number) => {
+    const active = feedRef.current[index]
+    if (!active) return
+    sessionRef.current = {
+      listingId: active.id,
+      watchMs: 0,
+      durationMs: 0,
+      completed: false,
+    }
+    lastTickRef.current = 0
+  }, [])
+
+  const flushCurrentWatch = useCallback(() => {
+    const prev = sessionRef.current
+    if (!prev) return
+    const listing = feedRef.current.find((l) => l.id === prev.listingId)
+    flushWatch(prev, listing)
+    sessionRef.current = null
+  }, [])
+
+  const activateSlide = useCallback(
+    (index: number, { syncState = true }: { syncState?: boolean } = {}) => {
+      const max = feedRef.current.length - 1
+      if (max < 0) return
+      const clamped = Math.max(0, Math.min(index, max))
+
+      const indexChanged = clamped !== activeIndexRef.current
+      if (indexChanged) {
+        flushCurrentWatch()
+        pauseAllVideos()
+        activeIndexRef.current = clamped
+        if (syncState) setActiveIndex(clamped)
+        beginWatchSession(clamped)
+      }
+
+      requestAnimationFrame(() => {
+        const current = getVideoAt(clamped)
+        if (indexChanged || current?.paused) {
+          playCurrentVideo()
+        }
+      })
+    },
+    [beginWatchSession, flushCurrentWatch, getVideoAt, pauseAllVideos, playCurrentVideo],
+  )
+
+  const videoRefCallbacks = useRef(new Map<string, (el: HTMLVideoElement | null) => void>())
+
+  const getVideoRef = useCallback((listingId: string) => {
+    let callback = videoRefCallbacks.current.get(listingId)
+    if (!callback) {
+      callback = (el: HTMLVideoElement | null) => {
+        if (el) videoByIdRef.current.set(listingId, el)
+        else videoByIdRef.current.delete(listingId)
+      }
+      videoRefCallbacks.current.set(listingId, callback)
+    }
+    return callback
+  }, [])
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
     return () => {
       document.body.classList.remove('reels-mode')
-      videoRefs.current.forEach((video) => {
-        if (!video) return
-        video.pause()
-        video.muted = true
-      })
-      const session = sessionRef.current
-      if (session) {
-        const listing = listingsRef.current.find((l) => l.id === session.listingId)
-        flushWatch(session, listing)
-        sessionRef.current = null
-      }
+      pauseAllVideos()
+      flushCurrentWatch()
     }
-  }, [])
+  }, [flushCurrentWatch, pauseAllVideos])
 
   useEffect(() => {
     const root = scrollerRef.current
@@ -153,19 +221,14 @@ export function ReelsPage() {
       const slideHeight = root.clientHeight
       if (slideHeight <= 0) return
       const index = Math.round(root.scrollTop / slideHeight)
-      const clamped = Math.max(0, Math.min(index, feed.length - 1))
-      if (clamped !== activeIndexRef.current) {
-        setActiveIndex(clamped)
-        return
-      }
-      playActive()
+      activateSlide(index)
     }
 
     const scheduleSync = () => {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(syncActiveFromScroll)
       if (scrollEndTimer) clearTimeout(scrollEndTimer)
-      scrollEndTimer = setTimeout(syncActiveFromScroll, 100)
+      scrollEndTimer = setTimeout(syncActiveFromScroll, 80)
     }
 
     root.addEventListener('scroll', scheduleSync, { passive: true })
@@ -177,56 +240,23 @@ export function ReelsPage() {
       cancelAnimationFrame(raf)
       if (scrollEndTimer) clearTimeout(scrollEndTimer)
     }
-  }, [feed.length, playActive])
-
-  const activeListingId = feed[activeIndex]?.id
+  }, [activateSlide, feed.length])
 
   useEffect(() => {
-    const prev = sessionRef.current
-    if (prev) {
-      const listing = listingsRef.current.find((l) => l.id === prev.listingId)
-      flushWatch(prev, listing)
-      sessionRef.current = null
-    }
-
-    stopAllExcept(activeIndex)
-
-    let outerRaf = 0
-    let innerRaf = 0
-    outerRaf = requestAnimationFrame(() => {
-      innerRaf = requestAnimationFrame(() => {
-        playActive()
-      })
-    })
-
-    const active = listingsRef.current[activeIndex]
-    if (active) {
-      sessionRef.current = {
-        listingId: active.id,
-        watchMs: 0,
-        durationMs: 0,
-        completed: false,
-      }
-      lastTickRef.current = 0
-    }
-
-    return () => {
-      cancelAnimationFrame(outerRaf)
-      cancelAnimationFrame(innerRaf)
-    }
-  }, [activeIndex, activeListingId, playActive, stopAllExcept])
-
-  useLayoutEffect(() => {
     if (feed.length === 0) return
-    playActive()
-  }, [feed.length, playActive])
+    activeIndexRef.current = 0
+    setActiveIndex(0)
+    beginWatchSession(0)
+    activateSlide(0, { syncState: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed.length])
 
   useEffect(() => {
-    const video = videoRefs.current[activeIndex]
+    const video = getVideoAt(activeIndexRef.current)
     if (!video) return
-    video.muted = isMuted
-    if (video.paused) playActive()
-  }, [isMuted, activeIndex, playActive])
+    video.muted = isMutedRef.current
+    video.volume = 1
+  }, [isMuted, getVideoAt])
 
   const onTimeUpdate = (listingId: string, video: HTMLVideoElement) => {
     const session = sessionRef.current
@@ -246,14 +276,16 @@ export function ReelsPage() {
   }
 
   const toggleMute = (index: number) => {
-    const video = videoRefs.current[index]
+    if (index !== activeIndexRef.current) return
+    const video = getVideoAt(index)
     if (!video) return
     const nextMuted = !isMuted
     setIsMuted(nextMuted)
     isMutedRef.current = nextMuted
     video.muted = nextMuted
-    if (index === activeIndex) {
-      ensurePlaying(video, !nextMuted)
+    video.volume = 1
+    if (!nextMuted) {
+      void video.play().catch(() => undefined)
     }
   }
 
@@ -301,32 +333,31 @@ export function ReelsPage() {
               aria-label={title}
             >
               <video
-                ref={(el) => {
-                  videoRefs.current[index] = el
-                }}
+                ref={getVideoRef(listing.id)}
                 className="reel-slide__video"
                 src={listing.videoUrl}
                 poster={listing.videoPoster}
                 playsInline
-                autoPlay={isActive}
-                muted={isMuted || !isActive}
+                muted={!isActive || isMuted}
                 loop
                 preload={Math.abs(index - activeIndex) <= 1 ? 'auto' : 'metadata'}
                 onCanPlay={() => {
-                  if (index === activeIndexRef.current) playActive()
-                }}
-                onLoadedData={() => {
-                  if (index === activeIndexRef.current) playActive()
+                  if (index !== activeIndexRef.current) return
+                  playCurrentVideo()
                 }}
                 onClick={() => {
-                  const video = videoRefs.current[index]
-                  if (!video) return
                   if (index !== activeIndexRef.current) {
-                    setActiveIndex(index)
+                    const root = scrollerRef.current
+                    if (root) {
+                      root.scrollTo({ top: index * root.clientHeight, behavior: 'smooth' })
+                    }
+                    activateSlide(index)
                     return
                   }
+                  const video = getVideoAt(index)
+                  if (!video) return
                   if (video.paused) {
-                    void playActive()
+                    playCurrentVideo()
                   } else {
                     video.pause()
                   }
