@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFavorites } from '../context/FavoritesContext'
 import { useListings } from '../context/ListingsContext'
@@ -91,29 +91,38 @@ export function ReelsPage() {
     })
   }, [])
 
-  const playActive = useCallback(async () => {
+  const ensurePlaying = useCallback((video: HTMLVideoElement, allowSound: boolean) => {
+    const applyMute = () => {
+      video.muted = !allowSound
+    }
+
+    const attempt = () => {
+      applyMute()
+      void video.play().catch(() => {
+        const retry = () => {
+          applyMute()
+          void video.play().catch(() => undefined)
+        }
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          retry()
+          return
+        }
+        video.addEventListener('canplay', retry, { once: true })
+        video.addEventListener('loadeddata', retry, { once: true })
+      })
+    }
+
+    attempt()
+  }, [])
+
+  const playActive = useCallback(() => {
     const index = activeIndexRef.current
     const video = videoRefs.current[index]
     if (!video) return
 
     stopAllExcept(index)
-    video.muted = isMutedRef.current
-
-    try {
-      await video.play()
-    } catch {
-      // Autoplay may still fail if not muted — force mute and retry once.
-      if (!video.muted) {
-        video.muted = true
-        setIsMuted(true)
-        try {
-          await video.play()
-        } catch {
-          // leave paused; user tap / unmute will start it
-        }
-      }
-    }
-  }, [stopAllExcept])
+    ensurePlaying(video, !isMutedRef.current)
+  }, [stopAllExcept, ensurePlaying])
 
   useEffect(() => {
     document.body.classList.add('reels-mode')
@@ -143,31 +152,33 @@ export function ReelsPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
-          .filter((e) => e.isIntersecting && e.intersectionRatio >= 0.65)
+          .filter((e) => e.isIntersecting && e.intersectionRatio >= 0.5)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
         if (!visible) return
         const index = Number((visible.target as HTMLElement).dataset.reelIndex)
         if (Number.isFinite(index)) setActiveIndex(index)
       },
-      { root, threshold: [0.65, 0.8, 0.95] },
+      { root, threshold: [0.5, 0.65, 0.8, 0.95] },
     )
 
     slides.forEach((slide) => observer.observe(slide))
     return () => observer.disconnect()
   }, [feed.length])
 
+  const activeListingId = feed[activeIndex]?.id
+
   useEffect(() => {
     const prev = sessionRef.current
     if (prev) {
-      const listing = feed.find((l) => l.id === prev.listingId)
+      const listing = listingsRef.current.find((l) => l.id === prev.listingId)
       flushWatch(prev, listing)
       sessionRef.current = null
     }
 
     stopAllExcept(activeIndex)
-    void playActive()
+    playActive()
 
-    const active = feed[activeIndex]
+    const active = listingsRef.current[activeIndex]
     if (active) {
       sessionRef.current = {
         listingId: active.id,
@@ -177,14 +188,18 @@ export function ReelsPage() {
       }
       lastTickRef.current = 0
     }
-  }, [activeIndex, feed, playActive, stopAllExcept])
+  }, [activeIndex, activeListingId, playActive, stopAllExcept])
+
+  useLayoutEffect(() => {
+    if (feed.length === 0) return
+    playActive()
+  }, [feed.length, playActive])
 
   useEffect(() => {
     const video = videoRefs.current[activeIndex]
     if (!video) return
     video.muted = isMuted
-    if (!video.paused) return
-    void playActive()
+    if (video.paused) playActive()
   }, [isMuted, activeIndex, playActive])
 
   const onTimeUpdate = (listingId: string, video: HTMLVideoElement) => {
@@ -209,9 +224,10 @@ export function ReelsPage() {
     if (!video) return
     const nextMuted = !isMuted
     setIsMuted(nextMuted)
+    isMutedRef.current = nextMuted
     video.muted = nextMuted
     if (index === activeIndex) {
-      void video.play().catch(() => undefined)
+      ensurePlaying(video, !nextMuted)
     }
   }
 
@@ -266,11 +282,15 @@ export function ReelsPage() {
                 src={listing.videoUrl}
                 poster={listing.videoPoster}
                 playsInline
+                autoPlay={isActive}
                 muted={isMuted || !isActive}
                 loop
                 preload={Math.abs(index - activeIndex) <= 1 ? 'auto' : 'metadata'}
+                onCanPlay={() => {
+                  if (index === activeIndexRef.current) playActive()
+                }}
                 onLoadedData={() => {
-                  if (index === activeIndexRef.current) void playActive()
+                  if (index === activeIndexRef.current) playActive()
                 }}
                 onClick={() => {
                   const video = videoRefs.current[index]
