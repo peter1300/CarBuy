@@ -17,7 +17,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { tGlobal } from '../i18n/messages'
 
 /** Max raw attachment size before compression */
-export const MAX_MESSAGE_VIDEO_BYTES = 150 * 1024 * 1024
+export const MAX_MESSAGE_VIDEO_BYTES = 200 * 1024 * 1024
 /** Max size after compression for upload */
 export const MAX_MESSAGE_VIDEO_UPLOAD_BYTES = 40 * 1024 * 1024
 export const ALLOWED_MESSAGE_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const

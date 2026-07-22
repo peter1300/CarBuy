@@ -242,7 +242,7 @@ export const hu: Messages = {
   'create.errorPublishFailed': 'Közzététel sikertelen.',
   'create.defaultTitle': 'Új hirdetés',
   'create.errorVideoType': 'Csak videófájl tölthető fel (MP4, MOV, WebM).',
-  'create.errorVideoSize': 'A videó maximum 150 MB lehet.',
+  'create.errorVideoSize': 'A videó maximum 200 MB lehet.',
   'create.successTitle': 'Hirdetés rögzítve!',
   'create.successProcessing':
     'A videókat a háttérben dolgozzuk fel. Hirdetésed néhány percen belül elérhető lesz a keresésben.',
@@ -273,7 +273,7 @@ export const hu: Messages = {
   'create.flawsLead':
     'Minden használtautón vannak hibák. Ha őszintén megmutatod őket, a vevő inkább bízik benned — és kevésbé jön meglepetésként bármi az átadáskor.',
   'create.flawsEmpty': 'Hibák videó feltöltése',
-  'create.flawsEmptyHint': 'Karcok, kopások · max. 150 MB',
+  'create.flawsEmptyHint': 'Karcok, kopások · max. 200 MB',
   'create.flawsWhy': 'Miért érdemes?',
   'create.flawsWhyText':
     'A vevő látja, hogy nem takargatsz semmit. Ez gyakran erősebb bizalomépítő, mint egy tökéletesnek tűnő bemutató.',
@@ -455,7 +455,7 @@ export const hu: Messages = {
   'messages.send': 'Küldés',
   'messages.sending': 'Küldés…',
   'messages.errorVideoType': 'Csak videófájl csatolható.',
-  'messages.errorVideoSize': 'A videó maximum 150 MB lehet (feltöltés előtt tömörítjük).',
+  'messages.errorVideoSize': 'A videó maximum 200 MB lehet (feltöltés előtt tömörítjük).',
   'messages.previewNew': 'Új beszélgetés',
   'messages.previewVideo': 'Videó csatolva',
   'messages.previewMessage': 'Üzenet',
@@ -547,7 +547,7 @@ export const hu: Messages = {
   'recorder.errorInterrupted': 'A felvétel megszakadt. Próbáld újra.',
   'recorder.errorStart': 'Nem sikerült elindítani a felvételt ezen a készüléken.',
   'recorder.errorEmpty': 'Üres felvétel készült. Próbáld újra.',
-  'recorder.errorTooLarge': 'A felvétel túl nagy (max. 150 MB). Rövidítsd, vagy csökkentsd a hosszát.',
+  'recorder.errorTooLarge': 'A felvétel túl nagy (max. 200 MB). Rövidítsd, vagy csökkentsd a hosszát.',
   'recorder.errorStop': 'A felvétel leállítása sikertelen.',
 
   // —— Errors (contexts / validators) ——
@@ -566,9 +566,9 @@ export const hu: Messages = {
   'errors.saveFailed': 'Mentés sikertelen.',
   'errors.sessionExpired': 'A munkamenet lejárt. Lépj be újra, majd próbáld meg ismét.',
   'errors.videoType': 'Csak videófájl tölthető fel (MP4, MOV, WebM).',
-  'errors.videoSize': 'A videó maximum 150 MB lehet.',
+  'errors.videoSize': 'A videó maximum 200 MB lehet.',
   'errors.flawsVideoType': 'A hibák videója csak videófájl lehet (MP4, MOV, WebM).',
-  'errors.flawsVideoSize': 'A hibák videója maximum 150 MB lehet.',
+  'errors.flawsVideoSize': 'A hibák videója maximum 200 MB lehet.',
   'errors.compressMain': 'Bemutatóvideó tömörítése…',
   'errors.compressMainProgress': 'Bemutatóvideó tömörítése… {pct}%',
   'errors.compressFlaws': 'Hibák videó tömörítése…',
@@ -603,7 +603,7 @@ export const hu: Messages = {
   'errors.conversationCreateFailed': 'Beszélgetés létrehozása sikertelen.',
   'errors.messageNeedContent': 'Írj üzenetet vagy csatolj videót.',
   'errors.messageVideoType': 'Csak videófájl csatolható.',
-  'errors.messageVideoSize': 'A videó maximum 150 MB lehet.',
+  'errors.messageVideoSize': 'A videó maximum 200 MB lehet.',
   'errors.messageCompressFailed': 'A videó tömörítése sikertelen.',
   'errors.messageCompressedTooLarge':
     'A tömörített videó még mindig túl nagy (max. 40 MB). Rövidítsd a felvételt.',
@@ -765,7 +765,7 @@ export const hu: Messages = {
   'create.transAuto': 'Automata',
   'create.transManual': 'Manuális',
   'create.videoRequired': 'Tölts fel egy bemutatóvideót.',
-  'create.videoSizeError': 'A videó maximum 150 MB lehet.',
+  'create.videoSizeError': 'A videó maximum 200 MB lehet.',
   'create.videoTypeError': 'Csak videófájl tölthető fel (MP4, MOV, WebM).',
   'delete.bodyCarbuy':
     'Örülünk, hogy segíthettünk a vevő megtalálásában. A hirdetésed most törlésre kerül.',
@@ -811,7 +811,7 @@ export const hu: Messages = {
   'messages.newChat': 'Új beszélgetés',
   'messages.remove': 'Eltávolítás',
   'messages.videoAttached': 'Videó csatolva',
-  'messages.videoSize': 'A videó maximum 150 MB lehet (feltöltés előtt tömörítjük).',
+  'messages.videoSize': 'A videó maximum 200 MB lehet (feltöltés előtt tömörítjük).',
   'messages.videoType': 'Csak videófájl csatolható.',
   'product.carsCrumb': 'Személyautó',
   'product.flawsText':

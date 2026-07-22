@@ -1,6 +1,7 @@
 import { tGlobal } from '../i18n/messages'
 
-export const MAX_LISTING_VIDEO_BYTES = 150 * 1024 * 1024
+export const MAX_LISTING_VIDEO_BYTES = 200 * 1024 * 1024
+export const MAX_LISTING_VIDEO_MB = 200
 
 /** Preferált MIME-ek; mobilok gyakran üres type-ot vagy 3GPP-t adnak. */
 export const ALLOWED_LISTING_VIDEO_TYPES = [

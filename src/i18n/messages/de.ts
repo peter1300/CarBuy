@@ -238,7 +238,7 @@ export const de: Messages = {
   'create.errorPublishFailed': 'Veröffentlichung fehlgeschlagen.',
   'create.defaultTitle': 'Neue Anzeige',
   'create.errorVideoType': 'Nur Videodateien können hochgeladen werden (MP4, MOV, WebM).',
-  'create.errorVideoSize': 'Das Video darf maximal 150 MB groß sein.',
+  'create.errorVideoSize': 'Das Video darf maximal 200 MB groß sein.',
   'create.successTitle': 'Anzeige gespeichert!',
   'create.successProcessing':
     'Wir verarbeiten deine Videos im Hintergrund. Deine Anzeige ist in wenigen Minuten in der Suche sichtbar.',
@@ -269,7 +269,7 @@ export const de: Messages = {
   'create.flawsLead':
     'Jedes Gebrauchtwagen hat Mängel. Zeigst du sie ehrlich, vertraut der Käufer mehr — und es gibt weniger Überraschungen bei der Übergabe.',
   'create.flawsEmpty': 'Mängelvideo hochladen',
-  'create.flawsEmptyHint': 'Kratzer, Abnutzung · max. 150 MB',
+  'create.flawsEmptyHint': 'Kratzer, Abnutzung · max. 200 MB',
   'create.flawsWhy': 'Warum lohnt es sich?',
   'create.flawsWhyText':
     'Der Käufer sieht, dass du nichts versteckst. Das baut oft mehr Vertrauen auf als eine perfekt wirkende Demo.',
@@ -451,7 +451,7 @@ export const de: Messages = {
   'messages.send': 'Senden',
   'messages.sending': 'Senden…',
   'messages.errorVideoType': 'Nur Videodateien können angehängt werden.',
-  'messages.errorVideoSize': 'Das Video darf maximal 150 MB groß sein (wir komprimieren vor dem Upload).',
+  'messages.errorVideoSize': 'Das Video darf maximal 200 MB groß sein (wir komprimieren vor dem Upload).',
   'messages.previewNew': 'Neues Gespräch',
   'messages.previewVideo': 'Video angehängt',
   'messages.previewMessage': 'Nachricht',
@@ -543,7 +543,7 @@ export const de: Messages = {
   'recorder.errorInterrupted': 'Aufnahme unterbrochen. Bitte erneut versuchen.',
   'recorder.errorStart': 'Aufnahme konnte auf diesem Gerät nicht gestartet werden.',
   'recorder.errorEmpty': 'Leere Aufnahme. Bitte erneut versuchen.',
-  'recorder.errorTooLarge': 'Aufnahme zu groß (max. 150 MB). Kürze sie.',
+  'recorder.errorTooLarge': 'Aufnahme zu groß (max. 200 MB). Kürze sie.',
   'recorder.errorStop': 'Aufnahme konnte nicht gestoppt werden.',
 
   // —— Errors ——
@@ -562,9 +562,9 @@ export const de: Messages = {
   'errors.saveFailed': 'Speichern fehlgeschlagen.',
   'errors.sessionExpired': 'Sitzung abgelaufen. Melde dich erneut an und versuche es noch einmal.',
   'errors.videoType': 'Nur Videodateien können hochgeladen werden (MP4, MOV, WebM).',
-  'errors.videoSize': 'Das Video darf maximal 150 MB groß sein.',
+  'errors.videoSize': 'Das Video darf maximal 200 MB groß sein.',
   'errors.flawsVideoType': 'Das Mängelvideo muss eine Videodatei sein (MP4, MOV, WebM).',
-  'errors.flawsVideoSize': 'Das Mängelvideo darf maximal 150 MB groß sein.',
+  'errors.flawsVideoSize': 'Das Mängelvideo darf maximal 200 MB groß sein.',
   'errors.compressMain': 'Demovideo wird komprimiert…',
   'errors.compressMainProgress': 'Demovideo wird komprimiert… {pct}%',
   'errors.compressFlaws': 'Mängelvideo wird komprimiert…',
@@ -599,7 +599,7 @@ export const de: Messages = {
   'errors.conversationCreateFailed': 'Gespräch konnte nicht erstellt werden.',
   'errors.messageNeedContent': 'Schreibe eine Nachricht oder hänge ein Video an.',
   'errors.messageVideoType': 'Nur Videodateien können angehängt werden.',
-  'errors.messageVideoSize': 'Das Video darf maximal 150 MB groß sein.',
+  'errors.messageVideoSize': 'Das Video darf maximal 200 MB groß sein.',
   'errors.messageCompressFailed': 'Videokompression fehlgeschlagen.',
   'errors.messageCompressedTooLarge':
     'Das komprimierte Video ist immer noch zu groß (max. 40 MB). Kürze die Aufnahme.',
@@ -761,7 +761,7 @@ export const de: Messages = {
   'create.transAuto': 'Automatik',
   'create.transManual': 'Manuell',
   'create.videoRequired': 'Lade ein Demovideo hoch.',
-  'create.videoSizeError': 'Das Video darf maximal 150 MB groß sein.',
+  'create.videoSizeError': 'Das Video darf maximal 200 MB groß sein.',
   'create.videoTypeError': 'Nur Videodateien können hochgeladen werden (MP4, MOV, WebM).',
   'delete.bodyCarbuy':
     'Schön, dass wir beim Finden eines Käufers helfen konnten. Deine Anzeige wird jetzt gelöscht.',
@@ -807,7 +807,7 @@ export const de: Messages = {
   'messages.newChat': 'Neues Gespräch',
   'messages.remove': 'Entfernen',
   'messages.videoAttached': 'Video angehängt',
-  'messages.videoSize': 'Das Video darf maximal 150 MB groß sein (wir komprimieren vor dem Upload).',
+  'messages.videoSize': 'Das Video darf maximal 200 MB groß sein (wir komprimieren vor dem Upload).',
   'messages.videoType': 'Nur Videodateien können angehängt werden.',
   'product.carsCrumb': 'PKW',
   'product.flawsText':

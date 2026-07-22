@@ -238,7 +238,7 @@ export const es: Messages = {
   'create.errorPublishFailed': 'Publicación fallida.',
   'create.defaultTitle': 'Nuevo anuncio',
   'create.errorVideoType': 'Solo se pueden subir vídeos (MP4, MOV, WebM).',
-  'create.errorVideoSize': 'El vídeo puede tener como máximo 150 MB.',
+  'create.errorVideoSize': 'El vídeo puede tener como máximo 200 MB.',
   'create.successTitle': '¡Anuncio guardado!',
   'create.successProcessing':
     'Estamos procesando tus vídeos en segundo plano. Tu anuncio estará visible en la búsqueda en unos minutos.',
@@ -269,7 +269,7 @@ export const es: Messages = {
   'create.flawsLead':
     'Todo coche de segunda mano tiene defectos. Si los muestras con honestidad, el comprador confía más — y hay menos sorpresas en la entrega.',
   'create.flawsEmpty': 'Subir vídeo de defectos',
-  'create.flawsEmptyHint': 'Arañazos, desgaste · máx. 150 MB',
+  'create.flawsEmptyHint': 'Arañazos, desgaste · máx. 200 MB',
   'create.flawsWhy': '¿Por qué merece la pena?',
   'create.flawsWhyText':
     'El comprador ve que no ocultas nada. Eso a menudo genera más confianza que una demo perfecta.',
@@ -451,7 +451,7 @@ export const es: Messages = {
   'messages.send': 'Enviar',
   'messages.sending': 'Enviando…',
   'messages.errorVideoType': 'Solo se pueden adjuntar vídeos.',
-  'messages.errorVideoSize': 'El vídeo puede tener como máximo 150 MB (lo comprimimos antes).',
+  'messages.errorVideoSize': 'El vídeo puede tener como máximo 200 MB (lo comprimimos antes).',
   'messages.previewNew': 'Nueva conversación',
   'messages.previewVideo': 'Vídeo adjunto',
   'messages.previewMessage': 'Mensaje',
@@ -543,7 +543,7 @@ export const es: Messages = {
   'recorder.errorInterrupted': 'La grabación se interrumpió. Inténtalo de nuevo.',
   'recorder.errorStart': 'No se pudo iniciar la grabación en este dispositivo.',
   'recorder.errorEmpty': 'Grabación vacía. Inténtalo de nuevo.',
-  'recorder.errorTooLarge': 'La grabación es demasiado grande (máx. 150 MB). Acórtala.',
+  'recorder.errorTooLarge': 'La grabación es demasiado grande (máx. 200 MB). Acórtala.',
   'recorder.errorStop': 'No se pudo detener la grabación.',
 
   // —— Errors ——
@@ -562,9 +562,9 @@ export const es: Messages = {
   'errors.saveFailed': 'Error al guardar.',
   'errors.sessionExpired': 'La sesión ha caducado. Vuelve a iniciar sesión e inténtalo de nuevo.',
   'errors.videoType': 'Solo se pueden subir vídeos (MP4, MOV, WebM).',
-  'errors.videoSize': 'El vídeo puede tener como máximo 150 MB.',
+  'errors.videoSize': 'El vídeo puede tener como máximo 200 MB.',
   'errors.flawsVideoType': 'El vídeo de defectos debe ser un archivo de vídeo (MP4, MOV, WebM).',
-  'errors.flawsVideoSize': 'El vídeo de defectos puede tener como máximo 150 MB.',
+  'errors.flawsVideoSize': 'El vídeo de defectos puede tener como máximo 200 MB.',
   'errors.compressMain': 'Comprimiendo vídeo de demo…',
   'errors.compressMainProgress': 'Comprimiendo vídeo de demo… {pct}%',
   'errors.compressFlaws': 'Comprimiendo vídeo de defectos…',
@@ -599,7 +599,7 @@ export const es: Messages = {
   'errors.conversationCreateFailed': 'No se pudo crear la conversación.',
   'errors.messageNeedContent': 'Escribe un mensaje o adjunta un vídeo.',
   'errors.messageVideoType': 'Solo se pueden adjuntar vídeos.',
-  'errors.messageVideoSize': 'El vídeo puede tener como máximo 150 MB.',
+  'errors.messageVideoSize': 'El vídeo puede tener como máximo 200 MB.',
   'errors.messageCompressFailed': 'Error al comprimir el vídeo.',
   'errors.messageCompressedTooLarge':
     'El vídeo comprimido sigue siendo demasiado grande (máx. 40 MB). Acorta la grabación.',
@@ -761,7 +761,7 @@ export const es: Messages = {
   'create.transAuto': 'Automático',
   'create.transManual': 'Manual',
   'create.videoRequired': 'Sube un vídeo de presentación.',
-  'create.videoSizeError': 'El vídeo puede tener como máximo 150 MB.',
+  'create.videoSizeError': 'El vídeo puede tener como máximo 200 MB.',
   'create.videoTypeError': 'Solo se pueden subir vídeos (MP4, MOV, WebM).',
   'delete.bodyCarbuy': 'Nos alegra haber ayudado a encontrar comprador. Tu anuncio se eliminará ahora.',
   'delete.bodyElsewhere': '¡La próxima vez anuncia con nosotros! Tu anuncio se eliminará ahora.',
@@ -806,7 +806,7 @@ export const es: Messages = {
   'messages.newChat': 'Nueva conversación',
   'messages.remove': 'Quitar',
   'messages.videoAttached': 'Vídeo adjunto',
-  'messages.videoSize': 'El vídeo puede tener como máximo 150 MB (lo comprimimos antes).',
+  'messages.videoSize': 'El vídeo puede tener como máximo 200 MB (lo comprimimos antes).',
   'messages.videoType': 'Solo se pueden adjuntar vídeos.',
   'product.carsCrumb': 'Coches',
   'product.flawsText':
