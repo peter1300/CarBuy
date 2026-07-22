@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import { FavoriteButton } from '../components/FavoriteButton'
 import { StatusBadge } from '../components/StatusBadge'
+import { StreamVideoPlayer } from '../components/StreamVideoPlayer'
 import { UserAvatar } from '../components/UserAvatar'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
@@ -211,7 +212,7 @@ export function ProductPage() {
                   </div>
                 </>
               ) : listing.videoUrl ? (
-                <video
+                <StreamVideoPlayer
                   className="product-video__player"
                   src={listing.videoUrl}
                   poster={listing.videoPoster}
@@ -269,7 +270,7 @@ export function ProductPage() {
                 <>
                   <p className="flaws-panel__lead">{t('product.flawsText')}</p>
                   <div className="flaws-panel__video">
-                    <video
+                    <StreamVideoPlayer
                       src={listing.flawsVideoUrl}
                       controls
                       playsInline

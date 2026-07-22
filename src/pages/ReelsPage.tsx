@@ -23,6 +23,7 @@ import {
 } from '../lib/reelsPlayback'
 import { FavoriteButton } from '../components/FavoriteButton'
 import { StatusBadge } from '../components/StatusBadge'
+import { StreamVideoPlayer } from '../components/StreamVideoPlayer'
 
 /** How many upcoming clips to buffer while the current one plays. */
 const PRELOAD_AHEAD = 5
@@ -485,7 +486,7 @@ export function ReelsPage() {
                 className={`reel-slide__media${isLandscape ? ' is-landscape' : ''}`}
               >
                 {isLandscape && (
-                  <video
+                  <StreamVideoPlayer
                     ref={getBgVideoRef(index)}
                     className="reel-slide__video reel-slide__video--bg"
                     src={listing.videoUrl}
@@ -498,7 +499,7 @@ export function ReelsPage() {
                     aria-hidden="true"
                   />
                 )}
-                <video
+                <StreamVideoPlayer
                   ref={getVideoRef(index)}
                   className={`reel-slide__video${isLandscape ? ' reel-slide__video--fg' : ' reel-slide__video--cover'}`}
                   src={listing.videoUrl}

@@ -1,0 +1,15 @@
+name = "cbuy-stream-api"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+
+[vars]
+# Public config (override in dashboard / .dev.vars as needed)
+MAX_DURATION_SECONDS = "600"
+
+# Secrets (wrangler secret put …):
+# CLOUDFLARE_ACCOUNT_ID
+# CLOUDFLARE_STREAM_API_TOKEN
+# STREAM_WEBHOOK_SECRET
+# SUPABASE_URL
+# SUPABASE_SERVICE_ROLE_KEY
+# SUPABASE_ANON_KEY

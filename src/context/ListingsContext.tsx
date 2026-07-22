@@ -22,6 +22,7 @@ import { buildListingSpecs, type UserListingUpdateInput } from '../lib/listingSp
 import { mapListingRow } from '../lib/mapListing'
 import {
   processListingVideos,
+  waitForExistingStreamListing,
   type ListingVideoProgress,
 } from '../lib/listingVideoProcessor'
 import {
@@ -206,7 +207,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     ) => {
       if (activeProcessingRef.current.has(listingId)) return
       activeProcessingRef.current.add(listingId)
-      setProgress(listingId, { percent: 1, phase: 'loading' })
+      setProgress(listingId, { percent: 1, phase: 'preparing' })
 
       void (async () => {
         try {
@@ -220,14 +221,17 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
           setProgress(listingId, { percent: 97, phase: 'saving' })
 
+          // Worker/webhook usually already wrote these; upsert so UI is ready even without webhook.
           const { data, error: updateError } = await supabase
             .from('listings')
             .update({
               video_url: result.videoUrl,
               flaws_video_url: result.flawsVideoUrl,
-              video_poster: result.posterUrl,
+              video_poster: result.posterUrl || DEFAULT_POSTER,
               video_duration: result.durationLabel,
               video_size_bytes: result.videoSizeBytes,
+              stream_uid: result.streamUid,
+              flaws_stream_uid: result.flawsStreamUid,
               processing_status: 'ready',
             })
             .eq('id', listingId)
@@ -248,6 +252,56 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           })
         } catch (err) {
           console.warn('[CarBuy] listing video processing failed', err)
+          await markListingProcessingFailed(listingId)
+        } finally {
+          activeProcessingRef.current.delete(listingId)
+        }
+      })()
+    },
+    [clearProgress, markListingProcessingFailed, setProgress],
+  )
+
+  const runEncodingPoll = useCallback(
+    (listingId: string, streamUid: string) => {
+      if (activeProcessingRef.current.has(listingId)) return
+      activeProcessingRef.current.add(listingId)
+      setProgress(listingId, { percent: 60, phase: 'encoding' })
+
+      void (async () => {
+        try {
+          const result = await waitForExistingStreamListing(streamUid, (progress) =>
+            setProgress(listingId, progress),
+          )
+          setProgress(listingId, { percent: 97, phase: 'saving' })
+
+          const { data, error: updateError } = await supabase
+            .from('listings')
+            .update({
+              video_url: result.videoUrl,
+              video_poster: result.posterUrl || DEFAULT_POSTER,
+              video_duration: result.durationLabel,
+              video_size_bytes: result.videoSizeBytes,
+              stream_uid: result.streamUid,
+              processing_status: 'ready',
+            })
+            .eq('id', listingId)
+            .select('*')
+            .single()
+
+          if (updateError || !data) {
+            throw new Error(updateError?.message ?? tGlobal('errors.listingSaveFailed'))
+          }
+
+          await removePendingListingVideos(listingId)
+          clearProgress(listingId)
+
+          const listing = mapListingRow(data)
+          setListings((prev) => {
+            const without = prev.filter((item) => item.id !== listing.id)
+            return [listing, ...without]
+          })
+        } catch (err) {
+          console.warn('[CarBuy] stream encoding poll failed', err)
           await markListingProcessingFailed(listingId)
         } finally {
           activeProcessingRef.current.delete(listingId)
@@ -311,14 +365,14 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
       const { data: processingRows } = await supabase
         .from('listings')
-        .select('id, video_url, created_at')
+        .select('id, video_url, stream_uid, created_at')
         .eq('owner_id', ownerId)
         .eq('processing_status', 'processing')
 
       const queued = await listPendingListingVideosForOwner(ownerId)
       const queuedIds = new Set(queued.map((record) => record.listingId))
-      /** Allow long WASM encodes (up to ~45 min) before marking stale. */
-      const STALE_PROCESSING_MS = 50 * 60 * 1000
+      /** Upload + Stream encode; mark stale after ~25 min. */
+      const STALE_PROCESSING_MS = 25 * 60 * 1000
       const now = Date.now()
 
       for (const row of processingRows ?? []) {
@@ -326,9 +380,20 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         const createdAt = Date.parse(row.created_at)
         const isStale =
           Number.isFinite(createdAt) && now - createdAt > STALE_PROCESSING_MS
+        const streamUid = row.stream_uid
 
-        if (!hasQueue && !row.video_url) {
-          await markListingProcessingFailed(row.id)
+        // Upload finished; wait for Cloudflare encode
+        if (!hasQueue && streamUid && !row.video_url) {
+          runEncodingPoll(row.id, streamUid)
+          continue
+        }
+
+        // Already has playback URL — finalize if still marked processing
+        if (!hasQueue && row.video_url) {
+          await supabase
+            .from('listings')
+            .update({ processing_status: 'ready' })
+            .eq('id', row.id)
           continue
         }
 
@@ -339,6 +404,10 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
         const pending = await loadPendingListingVideos(row.id)
         if (!pending) {
+          if (streamUid && !row.video_url) {
+            runEncodingPoll(row.id, streamUid)
+            continue
+          }
           if (isStale) await markListingProcessingFailed(row.id)
           continue
         }
@@ -347,7 +416,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         runListingVideoProcessing(row.id, ownerId, videoFile, flawsVideoFile)
       }
     },
-    [markListingProcessingFailed, runListingVideoProcessing, syncOwnerPendingListings],
+    [
+      markListingProcessingFailed,
+      runEncodingPoll,
+      runListingVideoProcessing,
+      syncOwnerPendingListings,
+    ],
   )
 
   useEffect(() => {

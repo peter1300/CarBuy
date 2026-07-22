@@ -17,16 +17,14 @@ function phaseLabel(
   t: (key: string) => string,
 ): string {
   switch (phase) {
-    case 'loading':
-      return t('profile.phaseLoading')
-    case 'compressing_main':
-      return t('profile.phaseCompressMain')
-    case 'compressing_flaws':
-      return t('profile.phaseCompressFlaws')
-    case 'poster':
-      return t('profile.phasePoster')
-    case 'uploading':
-      return t('profile.phaseUploading')
+    case 'preparing':
+      return t('profile.phasePreparing')
+    case 'uploading_main':
+      return t('profile.phaseUploadingMain')
+    case 'uploading_flaws':
+      return t('profile.phaseUploadingFlaws')
+    case 'encoding':
+      return t('profile.phaseEncoding')
     case 'saving':
       return t('profile.phaseSaving')
     default:
