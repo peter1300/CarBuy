@@ -24,6 +24,12 @@ export function formatVideoDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+/** Human-readable uploaded video size for admin / diagnostics. */
+export function formatVideoFileSizeMb(bytes: number | null | undefined): string {
+  if (bytes == null || bytes <= 0 || !Number.isFinite(bytes)) return '—'
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function isAllowedListingVideo(file: File): boolean {
   const type = file.type.toLowerCase()
   if (type.startsWith('video/')) return true

@@ -726,6 +726,7 @@ export const en: Messages = {
   'admin.personal': 'Personal',
   'admin.phone': 'Phone',
   'admin.price': 'Price',
+  'admin.videoSize': 'Video (MB)',
   'admin.reason': 'Reason',
   'admin.registered': 'Registered',
   'admin.registeredUsers': 'Registered users',

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
 import { formatListingTitle } from '../data/listings'
+import { formatVideoFileSizeMb } from '../lib/listingVideo'
 import { listingPath } from '../lib/listingUrl'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { ListingRow, ProfileRow } from '../lib/database.types'
@@ -625,6 +626,7 @@ export function AdminPage() {
                       <tr>
                         <th>{t('admin.listing')}</th>
                         <th>{t('admin.price')}</th>
+                        <th>{t('admin.videoSize')}</th>
                         <th>{t('admin.location')}</th>
                         <th>{t('admin.seller')}</th>
                         <th>{t('admin.created')}</th>
@@ -640,6 +642,7 @@ export function AdminPage() {
                             </Link>
                           </td>
                           <td>{formatPrice(l.price, locale)}</td>
+                          <td>{formatVideoFileSizeMb(l.video_size_bytes)}</td>
                           <td>{l.location || '—'}</td>
                           <td>{l.seller_name}</td>
                           <td>{formatDate(l.created_at, locale)}</td>

@@ -89,6 +89,7 @@ export type Database = {
           created_at: string
           video_url: string | null
           flaws_video_url: string | null
+          video_size_bytes: number | null
           seller_avatar_url: string | null
           country: string
           processing_status: 'processing' | 'ready' | 'failed'
@@ -121,6 +122,7 @@ export type Database = {
           created_at?: string
           video_url?: string | null
           flaws_video_url?: string | null
+          video_size_bytes?: number | null
           seller_avatar_url?: string | null
           country?: string
           processing_status?: 'processing' | 'ready' | 'failed'
@@ -153,6 +155,7 @@ export type Database = {
           created_at?: string
           video_url?: string | null
           flaws_video_url?: string | null
+          video_size_bytes?: number | null
           seller_avatar_url?: string | null
           country?: string
           processing_status?: 'processing' | 'ready' | 'failed'

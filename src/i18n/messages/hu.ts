@@ -731,6 +731,7 @@ export const hu: Messages = {
   'admin.personal': 'Magán',
   'admin.phone': 'Telefon',
   'admin.price': 'Ár',
+  'admin.videoSize': 'Videó (MB)',
   'admin.reason': 'Ok',
   'admin.registered': 'Regisztráció',
   'admin.registeredUsers': 'Regisztrált felhasználók',

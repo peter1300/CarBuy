@@ -14,6 +14,8 @@ export type ProcessListingVideosResult = {
   flawsVideoUrl: string | null
   posterUrl: string
   durationLabel: string
+  /** Main video byte size after compression (what was uploaded). */
+  videoSizeBytes: number
 }
 
 export async function processListingVideos(
@@ -107,5 +109,6 @@ export async function processListingVideos(
     flawsVideoUrl,
     posterUrl,
     durationLabel,
+    videoSizeBytes: file.size,
   }
 }

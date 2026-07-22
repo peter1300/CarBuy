@@ -188,6 +188,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
               flaws_video_url: result.flawsVideoUrl,
               video_poster: result.posterUrl,
               video_duration: result.durationLabel,
+              video_size_bytes: result.videoSizeBytes,
               processing_status: 'ready',
             })
             .eq('id', listingId)

@@ -13,6 +13,10 @@ type CompressOptions = {
   maxHeight?: number
   /** Lower = better quality / larger file. 18–22 ≈ visually lossless for social. */
   crf?: number
+  /** x264 preset — slower presets yield better quality at the same CRF. */
+  preset?: 'fast' | 'medium' | 'slow' | 'veryfast'
+  /** Audio bitrate for AAC track, e.g. 160k */
+  audioBitrate?: string
   /** Abort compression and upload the original file when exceeded. */
   timeoutMs?: number
 }
@@ -79,8 +83,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 }
 
 /**
- * Re-encode to H.264/AAC MP4 at high visual quality (CRF ~20) and max 1080p.
- * Phone camera files often drop from 100MB+ to TikTok-like 10–40MB without visible loss.
+ * Re-encode to H.264/AAC MP4 at high visual quality (CRF ~18) and max 1080p.
+ * Phone camera files often drop from 100MB+ to TikTok-like 10–40MB with minimal visible loss.
  * If compression fails or the result is larger, returns the original file.
  */
 export async function compressVideoForUpload(
@@ -88,7 +92,9 @@ export async function compressVideoForUpload(
   options: CompressOptions = {},
 ): Promise<File> {
   const maxHeight = options.maxHeight ?? 1080
-  const crf = options.crf ?? 20
+  const crf = options.crf ?? 18
+  const preset = options.preset ?? 'fast'
+  const audioBitrate = options.audioBitrate ?? '160k'
 
   // Tiny clips: still normalize to MP4 for consistent playback, unless already small mp4
   try {
@@ -113,7 +119,7 @@ export async function compressVideoForUpload(
         '-c:v',
         'libx264',
         '-preset',
-        'veryfast',
+        preset,
         '-crf',
         String(crf),
         '-pix_fmt',
@@ -121,7 +127,7 @@ export async function compressVideoForUpload(
         '-c:a',
         'aac',
         '-b:a',
-        '128k',
+        audioBitrate,
         '-ac',
         '2',
         '-movflags',

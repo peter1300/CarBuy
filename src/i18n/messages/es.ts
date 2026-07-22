@@ -727,6 +727,7 @@ export const es: Messages = {
   'admin.personal': 'Particular',
   'admin.phone': 'Teléfono',
   'admin.price': 'Precio',
+  'admin.videoSize': 'Vídeo (MB)',
   'admin.reason': 'Motivo',
   'admin.registered': 'Registro',
   'admin.registeredUsers': 'Usuarios registrados',
