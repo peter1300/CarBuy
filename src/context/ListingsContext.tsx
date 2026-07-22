@@ -225,25 +225,38 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
       const { data: processingRows } = await supabase
         .from('listings')
-        .select('id, video_url')
+        .select('id, video_url, created_at')
         .eq('owner_id', ownerId)
         .eq('processing_status', 'processing')
 
       const queued = await listPendingListingVideosForOwner(ownerId)
       const queuedIds = new Set(queued.map((record) => record.listingId))
+      /** Client-side encode/upload stuck longer than this → mark failed (user can re-upload). */
+      const STALE_PROCESSING_MS = 25 * 60 * 1000
+      const now = Date.now()
 
       for (const row of processingRows ?? []) {
         const hasQueue = queuedIds.has(row.id)
+        const createdAt = Date.parse(row.created_at)
+        const isStale =
+          Number.isFinite(createdAt) && now - createdAt > STALE_PROCESSING_MS
 
         if (!hasQueue && !row.video_url) {
           await markListingProcessingFailed(row.id)
           continue
         }
 
-        if (!hasQueue) continue
+        // Queued blob gone but still "processing" for a long time → fail cleanly.
+        if (!hasQueue) {
+          if (isStale) await markListingProcessingFailed(row.id)
+          continue
+        }
 
         const pending = await loadPendingListingVideos(row.id)
-        if (!pending) continue
+        if (!pending) {
+          if (isStale) await markListingProcessingFailed(row.id)
+          continue
+        }
 
         const { videoFile, flawsVideoFile } = pendingRecordToFiles(pending)
         runListingVideoProcessing(row.id, ownerId, videoFile, flawsVideoFile)

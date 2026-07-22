@@ -21,9 +21,28 @@ type CompressOptions = {
   timeoutMs?: number
 }
 
+/**
+ * Browser WASM re-encode of 50MB+ phone videos often takes 20–60+ minutes
+ * (or OOMs). Skip and upload the original instead.
+ */
+export const SKIP_COMPRESS_BYTES = 50 * 1024 * 1024
+
 let ffmpegInstance: FFmpeg | null = null
 let ffmpegLoad: Promise<FFmpeg> | null = null
 let progressHandler: ((ratio: number) => void) | null = null
+
+function resetFFmpeg() {
+  try {
+    if (ffmpegInstance?.loaded) {
+      ffmpegInstance.terminate()
+    }
+  } catch {
+    // ignore
+  }
+  ffmpegInstance = null
+  ffmpegLoad = null
+  progressHandler = null
+}
 
 async function getFFmpeg(onProgress?: CompressOptions['onProgress']): Promise<FFmpeg> {
   if (ffmpegInstance?.loaded) return ffmpegInstance
@@ -84,19 +103,26 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 
 /**
  * Re-encode to H.264/AAC MP4 at high visual quality (CRF ~18) and max 1080p.
- * Phone camera files often drop from 100MB+ to TikTok-like 10–40MB with minimal visible loss.
+ * Large files skip re-encode (browser WASM is too slow / memory-heavy).
  * If compression fails or the result is larger, returns the original file.
  */
 export async function compressVideoForUpload(
   file: File,
   options: CompressOptions = {},
 ): Promise<File> {
+  if (file.size >= SKIP_COMPRESS_BYTES) {
+    console.info(
+      `[CarBuy] skipping compression for ${(file.size / (1024 * 1024)).toFixed(1)} MB video (upload original)`,
+    )
+    return file
+  }
+
   const maxHeight = options.maxHeight ?? 1080
   const crf = options.crf ?? 18
   const preset = options.preset ?? 'fast'
   const audioBitrate = options.audioBitrate ?? '160k'
+  const timeoutMs = options.timeoutMs ?? 0
 
-  // Tiny clips: still normalize to MP4 for consistent playback, unless already small mp4
   try {
     const compressPromise = (async () => {
       const ffmpeg = await getFFmpeg(options.onProgress)
@@ -156,9 +182,11 @@ export async function compressVideoForUpload(
       })
     })()
 
-    return await withTimeout(compressPromise, options.timeoutMs ?? 0, 'Video compression')
+    return await withTimeout(compressPromise, timeoutMs, 'Video compression')
   } catch (err) {
     console.warn('[CarBuy] video compression failed, uploading original', err)
+    // Kill hung WASM encode so the next attempt can start clean.
+    resetFFmpeg()
     return file
   } finally {
     progressHandler = null
