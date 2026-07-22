@@ -16,6 +16,28 @@ export function rewindVideo(video: HTMLVideoElement) {
   }
 }
 
+export function isLandscapeReelVideo(video: HTMLVideoElement): boolean {
+  const { videoWidth, videoHeight } = video
+  return videoWidth > 0 && videoWidth > videoHeight
+}
+
+/** Keep blurred letterbox background in sync with the foreground reel clip. */
+export function syncReelBackground(main: HTMLVideoElement, bg: HTMLVideoElement | null | undefined) {
+  if (!bg) return
+  if (Math.abs(bg.currentTime - main.currentTime) > 0.2) {
+    try {
+      bg.currentTime = main.currentTime
+    } catch {
+      // ignore seek races
+    }
+  }
+  if (!main.paused && bg.paused) {
+    void bg.play().catch(() => undefined)
+  } else if (main.paused && !bg.paused) {
+    pauseVideo(bg)
+  }
+}
+
 function waitForEvent(
   video: HTMLVideoElement,
   eventName: 'seeked' | 'canplay' | 'loadeddata',

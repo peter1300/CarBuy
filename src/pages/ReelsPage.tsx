@@ -14,7 +14,13 @@ import {
   reportReelWatch,
   type ReelStats,
 } from '../lib/reels'
-import { pauseVideo, playReelVideo, rewindVideo } from '../lib/reelsPlayback'
+import {
+  isLandscapeReelVideo,
+  pauseVideo,
+  playReelVideo,
+  rewindVideo,
+  syncReelBackground,
+} from '../lib/reelsPlayback'
 import { FavoriteButton } from '../components/FavoriteButton'
 import { StatusBadge } from '../components/StatusBadge'
 
@@ -66,7 +72,10 @@ export function ReelsPage() {
 
   const scrollerRef = useRef<HTMLDivElement>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const bgVideoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const videoRefCallbacks = useRef<Array<(el: HTMLVideoElement | null) => void>>([])
+  const bgVideoRefCallbacks = useRef<Array<(el: HTMLVideoElement | null) => void>>([])
+  const [landscapeIds, setLandscapeIds] = useState(() => new Set<string>())
   const activeIndexRef = useRef(0)
   const isMutedRef = useRef(true)
   const feedRef = useRef<Listing[]>([])
@@ -128,6 +137,36 @@ export function ReelsPage() {
     return videoRefCallbacks.current[index]
   }, [])
 
+  const getBgVideoRef = useCallback((index: number) => {
+    if (!bgVideoRefCallbacks.current[index]) {
+      bgVideoRefCallbacks.current[index] = (el) => {
+        bgVideoRefs.current[index] = el
+        const main = videoRefs.current[index]
+        if (el && main && main.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          try {
+            el.currentTime = main.currentTime
+          } catch {
+            // ignore
+          }
+          if (!main.paused) void el.play().catch(() => undefined)
+        }
+      }
+    }
+    return bgVideoRefCallbacks.current[index]
+  }, [])
+
+  const markVideoOrientation = useCallback((listingId: string, video: HTMLVideoElement) => {
+    const landscape = isLandscapeReelVideo(video)
+    setLandscapeIds((prev) => {
+      const has = prev.has(listingId)
+      if (landscape === has) return prev
+      const next = new Set(prev)
+      if (landscape) next.add(listingId)
+      else next.delete(listingId)
+      return next
+    })
+  }, [])
+
   const endSession = useCallback(() => {
     const session = sessionRef.current
     if (!session) return
@@ -155,6 +194,10 @@ export function ReelsPage() {
       if (!video || videoIndex === index) return
       pauseVideo(video)
     })
+    bgVideoRefs.current.forEach((video, videoIndex) => {
+      if (!video || videoIndex === index) return
+      pauseVideo(video)
+    })
 
     const video = videoRefs.current[index]
     if (!video) return
@@ -165,6 +208,11 @@ export function ReelsPage() {
       isCurrent: () => playGenRef.current === generation && activeIndexRef.current === index,
     }).then((ok) => {
       if (!ok) return
+      const bg = bgVideoRefs.current[index]
+      if (bg) {
+        bg.muted = true
+        syncReelBackground(video, bg)
+      }
       if (video.muted && !isMutedRef.current) {
         isMutedRef.current = true
         setIsMuted(true)
@@ -179,10 +227,16 @@ export function ReelsPage() {
       const clamped = Math.max(0, Math.min(next, max))
       if (clamped === activeIndexRef.current) return
 
-      const prev = videoRefs.current[activeIndexRef.current]
+      const prevIndex = activeIndexRef.current
+      const prev = videoRefs.current[prevIndex]
       if (prev) {
         pauseVideo(prev)
         rewindVideo(prev)
+      }
+      const prevBg = bgVideoRefs.current[prevIndex]
+      if (prevBg) {
+        pauseVideo(prevBg)
+        rewindVideo(prevBg)
       }
 
       // Invalidate any in-flight play for the previous slide.
@@ -202,6 +256,9 @@ export function ReelsPage() {
       document.body.classList.remove('reels-mode')
       playGenRef.current += 1
       videoRefs.current.forEach((video) => {
+        if (video) pauseVideo(video)
+      })
+      bgVideoRefs.current.forEach((video) => {
         if (video) pauseVideo(video)
       })
       endSession()
@@ -302,10 +359,14 @@ export function ReelsPage() {
 
     for (let index = 0; index < feed.length; index++) {
       const video = videoRefs.current[index]
+      const bgVideo = bgVideoRefs.current[index]
       if (!video) continue
 
-      if (index >= start && index <= end) {
-        video.preload = 'auto'
+      const warm = index >= start && index <= end
+      video.preload = warm ? 'auto' : 'none'
+      if (bgVideo) bgVideo.preload = warm ? 'auto' : 'none'
+
+      if (warm) {
         // Kick off download for upcoming clips that have not buffered yet.
         // Skip the active one — it is already playing / loading via playActive.
         if (
@@ -316,12 +377,12 @@ export function ReelsPage() {
           warmedIndexesRef.current.add(index)
           try {
             video.load()
+            bgVideo?.load()
           } catch {
             // ignore
           }
         }
       } else {
-        video.preload = 'none'
         warmedIndexesRef.current.delete(index)
       }
     }
@@ -411,6 +472,7 @@ export function ReelsPage() {
           const title = formatListingTitle(listing)
           const isActive = index === activeIndex
           const preload = inPreloadWindow(index, activeIndex)
+          const isLandscape = landscapeIds.has(listing.id)
 
           return (
             <section
@@ -419,37 +481,62 @@ export function ReelsPage() {
               data-reel-index={index}
               aria-label={title}
             >
-              <video
-                ref={getVideoRef(index)}
-                className="reel-slide__video"
-                src={listing.videoUrl}
-                poster={listing.videoPoster}
-                playsInline
-                muted={isMuted || !isActive}
-                loop={false}
-                preload={preload ? 'auto' : 'none'}
-                controls={false}
-                onCanPlay={() => {
-                  // Soft nudge only — never bump playGen / cancel the main play.
-                  if (index !== activeIndexRef.current) return
-                  const video = videoRefs.current[index]
-                  if (!video || !video.paused) return
-                  video.muted = true
-                  void video.play().catch(() => undefined)
-                }}
-                onClick={togglePauseActive}
-                onTimeUpdate={(e) => onTimeUpdate(listing.id, e.currentTarget)}
-                onEnded={(e) => {
-                  const video = e.currentTarget
-                  const session = sessionRef.current
-                  if (session?.listingId === listing.id) {
-                    session.completed = true
-                    session.watchMs = Math.max(session.watchMs, (video.duration || 0) * 1000)
-                  }
-                  if (index !== activeIndexRef.current) return
-                  playActive(index, true)
-                }}
-              />
+              <div
+                className={`reel-slide__media${isLandscape ? ' is-landscape' : ''}`}
+              >
+                {isLandscape && (
+                  <video
+                    ref={getBgVideoRef(index)}
+                    className="reel-slide__video reel-slide__video--bg"
+                    src={listing.videoUrl}
+                    poster={listing.videoPoster}
+                    playsInline
+                    muted
+                    loop={false}
+                    preload={preload ? 'auto' : 'none'}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                )}
+                <video
+                  ref={getVideoRef(index)}
+                  className={`reel-slide__video${isLandscape ? ' reel-slide__video--fg' : ' reel-slide__video--cover'}`}
+                  src={listing.videoUrl}
+                  poster={listing.videoPoster}
+                  playsInline
+                  muted={isMuted || !isActive}
+                  loop={false}
+                  preload={preload ? 'auto' : 'none'}
+                  controls={false}
+                  onLoadedMetadata={(e) => markVideoOrientation(listing.id, e.currentTarget)}
+                  onCanPlay={() => {
+                    // Soft nudge only — never bump playGen / cancel the main play.
+                    if (index !== activeIndexRef.current) return
+                    const video = videoRefs.current[index]
+                    if (!video || !video.paused) return
+                    video.muted = true
+                    void video.play().catch(() => undefined)
+                  }}
+                  onPlay={(e) => syncReelBackground(e.currentTarget, bgVideoRefs.current[index])}
+                  onPause={(e) => syncReelBackground(e.currentTarget, bgVideoRefs.current[index])}
+                  onSeeked={(e) => syncReelBackground(e.currentTarget, bgVideoRefs.current[index])}
+                  onClick={togglePauseActive}
+                  onTimeUpdate={(e) => {
+                    syncReelBackground(e.currentTarget, bgVideoRefs.current[index])
+                    onTimeUpdate(listing.id, e.currentTarget)
+                  }}
+                  onEnded={(e) => {
+                    const video = e.currentTarget
+                    const session = sessionRef.current
+                    if (session?.listingId === listing.id) {
+                      session.completed = true
+                      session.watchMs = Math.max(session.watchMs, (video.duration || 0) * 1000)
+                    }
+                    if (index !== activeIndexRef.current) return
+                    playActive(index, true)
+                  }}
+                />
+              </div>
 
               <div className="reel-slide__gradient" aria-hidden="true" />
 
