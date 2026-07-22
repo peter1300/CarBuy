@@ -188,33 +188,31 @@ export async function attachMediaSource(
     }
   }
 
-  // Prefer higher ABR start — default hls.js often begins on the lowest ladder
-  // (looks very soft on Reels/Product). Cap to ~1080p when available.
+  // Always prefer the highest available Stream ABR rung for listing playback.
   const hls = new Hls({
     enableWorker: true,
     lowLatencyMode: false,
-    maxBufferLength: 30,
+    maxBufferLength: 45,
     capLevelToPlayerSize: false,
     testBandwidth: false,
-    abrEwmaDefaultEstimate: 8_000_000,
-    abrEwmaDefaultEstimateMax: 20_000_000,
+    abrEwmaDefaultEstimate: 20_000_000,
+    abrEwmaDefaultEstimateMax: Infinity,
     startLevel: -1,
   })
 
-  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+  const lockHighestQuality = () => {
     const levels = hls.levels
     if (!levels.length) return
-    let start = levels.length - 1
-    for (let i = levels.length - 1; i >= 0; i -= 1) {
-      const h = levels[i].height || 0
-      if (h > 0 && h <= 1080) {
-        start = i
-        break
-      }
-    }
-    hls.startLevel = start
-    hls.loadLevel = start
-  })
+    const highest = levels.length - 1
+    hls.startLevel = highest
+    hls.loadLevel = highest
+    hls.nextLevel = highest
+    hls.currentLevel = highest
+    hls.autoLevelEnabled = false
+  }
+
+  hls.on(Hls.Events.MANIFEST_PARSED, lockHighestQuality)
+  hls.on(Hls.Events.LEVELS_UPDATED, lockHighestQuality)
 
   hls.loadSource(src)
   hls.attachMedia(video)
