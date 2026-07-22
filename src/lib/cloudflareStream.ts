@@ -207,8 +207,8 @@ export async function attachMediaSource(
     hls.startLevel = highest
     hls.loadLevel = highest
     hls.nextLevel = highest
+    // Setting currentLevel to a concrete index disables ABR auto-selection.
     hls.currentLevel = highest
-    hls.autoLevelEnabled = false
   }
 
   hls.on(Hls.Events.MANIFEST_PARSED, lockHighestQuality)
