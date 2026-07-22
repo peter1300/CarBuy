@@ -1,20 +1,115 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { UserAvatar } from '../components/UserAvatar'
 import { DeleteListingDialog, type DeletionReason } from '../components/DeleteListingDialog'
 import { useAuth } from '../context/AuthContext'
-import { useListings } from '../context/ListingsContext'
+import { useListings, type VideoUploadProgress } from '../context/ListingsContext'
 import { useLocale } from '../i18n/LocaleContext'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import type { Listing } from '../data/listings'
 import { listingPath } from '../lib/listingUrl'
+import { LISTING_VIDEO_ACCEPT } from '../lib/listingVideo'
 import { StatusBadge } from '../components/StatusBadge'
+import type { ListingVideoProgressPhase } from '../lib/listingVideoProcessor'
+
+function phaseLabel(
+  phase: ListingVideoProgressPhase | undefined,
+  t: (key: string) => string,
+): string {
+  switch (phase) {
+    case 'loading':
+      return t('profile.phaseLoading')
+    case 'compressing_main':
+      return t('profile.phaseCompressMain')
+    case 'compressing_flaws':
+      return t('profile.phaseCompressFlaws')
+    case 'poster':
+      return t('profile.phasePoster')
+    case 'uploading':
+      return t('profile.phaseUploading')
+    case 'saving':
+      return t('profile.phaseSaving')
+    default:
+      return t('profile.processing')
+  }
+}
+
+function VideoProcessingPanel({
+  listing,
+  progress,
+  onRetry,
+  onPickVideo,
+}: {
+  listing: Listing
+  progress: VideoUploadProgress | null
+  onRetry: (listing: Listing) => void
+  onPickVideo: (listing: Listing) => void
+}) {
+  const { t } = useLocale()
+
+  if (listing.processingStatus === 'failed') {
+    return (
+      <div className="profile-listing__upload profile-listing__upload--failed">
+        <p className="profile-listing__upload-label">{t('profile.processingFailed')}</p>
+        <div className="profile-listing__upload-actions">
+          <button type="button" className="btn btn--outline btn--sm" onClick={() => onRetry(listing)}>
+            {t('profile.retryUpload')}
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => onPickVideo(listing)}>
+            {t('profile.reselectVideo')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (listing.processingStatus !== 'processing') return null
+
+  const percent = progress?.percent ?? 0
+  const label = phaseLabel(progress?.phase, t)
+
+  return (
+    <div
+      className="profile-listing__upload"
+      role="status"
+      aria-live="polite"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+    >
+      <div className="profile-listing__upload-head">
+        <span className="profile-listing__upload-label">{label}</span>
+        <span className="profile-listing__upload-pct">
+          {t('profile.processingPercent', { pct: percent })}
+        </span>
+      </div>
+      <div className="profile-listing__progress">
+        <div
+          className="profile-listing__progress-bar"
+          style={{ width: `${Math.max(2, percent)}%` }}
+        />
+      </div>
+      <p className="profile-listing__upload-hint">{t('profile.processingKeepOpen')}</p>
+    </div>
+  )
+}
 
 export function ProfilePage() {
   const { user, loading: authLoading, logout } = useAuth()
-  const { getListingsForUser, removeListing, loading: listingsLoading, error, resumeListingVideoProcessing } = useListings()
+  const {
+    getListingsForUser,
+    removeListing,
+    loading: listingsLoading,
+    error,
+    resumeListingVideoProcessing,
+    getVideoUploadProgress,
+    retryListingVideoProcessing,
+  } = useListings()
   const { t, locale } = useLocale()
   const [deletingListing, setDeletingListing] = useState<Listing | null>(null)
+  const [retryMessage, setRetryMessage] = useState<string | null>(null)
+  const retryFileRef = useRef<HTMLInputElement>(null)
+  const retryListingIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -44,9 +139,56 @@ export function ProfilePage() {
   const displayName =
     user.accountType === 'business' && user.companyName ? user.companyName : user.name
 
+  const handleRetry = async (listing: Listing) => {
+    setRetryMessage(null)
+    const result = await retryListingVideoProcessing(listing.id)
+    if (result === 'needs_files') {
+      retryListingIdRef.current = listing.id
+      retryFileRef.current?.click()
+      setRetryMessage(t('profile.retryNeedVideo'))
+      return
+    }
+    if (result === 'busy') {
+      setRetryMessage(t('profile.retryBusy'))
+      return
+    }
+    if (result === 'not_found') {
+      setRetryMessage(t('profile.retryFailed'))
+    }
+  }
+
+  const handlePickVideo = (listing: Listing) => {
+    setRetryMessage(null)
+    retryListingIdRef.current = listing.id
+    retryFileRef.current?.click()
+  }
+
+  const onRetryFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    const listingId = retryListingIdRef.current
+    event.target.value = ''
+    if (!file || !listingId) return
+
+    const result = await retryListingVideoProcessing(listingId, { videoFile: file })
+    if (result !== 'started') {
+      setRetryMessage(t('profile.retryFailed'))
+    } else {
+      setRetryMessage(null)
+    }
+  }
+
   return (
     <main className="page profile-page">
       <div className="profile-atmosphere" aria-hidden="true" />
+      <input
+        ref={retryFileRef}
+        type="file"
+        accept={LISTING_VIDEO_ACCEPT}
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => void onRetryFileChange(e)}
+      />
       <div className="container">
         <header className="profile-header">
           <div className="profile-header__identity">
@@ -94,6 +236,7 @@ export function ProfilePage() {
           </div>
 
           {error && <p className="form-error">{error}</p>}
+          {retryMessage && <p className="form-error">{retryMessage}</p>}
 
           {listingsLoading ? (
             <p className="state-message">{t('common.loading')}</p>
@@ -129,15 +272,15 @@ export function ProfilePage() {
                         </p>
                       </div>
                       <StatusBadge status={listing.seller.status} />
-                      {listing.processingStatus === 'processing' && (
-                        <span className="profile-listing__processing">{t('profile.processing')}</span>
-                      )}
-                      {listing.processingStatus === 'failed' && (
-                        <span className="profile-listing__processing profile-listing__processing--failed">
-                          {t('profile.processingFailed')}
-                        </span>
-                      )}
                     </div>
+
+                    <VideoProcessingPanel
+                      listing={listing}
+                      progress={getVideoUploadProgress(listing.id)}
+                      onRetry={(item) => void handleRetry(item)}
+                      onPickVideo={handlePickVideo}
+                    />
+
                     <div className="profile-listing__footer">
                       <div className="profile-listing__metrics">
                         <p className="profile-listing__price">{formatPrice(listing.price)}</p>

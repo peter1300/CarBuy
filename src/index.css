@@ -3716,6 +3716,95 @@ textarea.is-locked:disabled {
   color: #b43232;
 }
 
+.profile-listing__upload {
+  margin: 0.65rem 0 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md, 10px);
+  background: linear-gradient(180deg, rgba(15, 122, 90, 0.08), rgba(15, 122, 90, 0.03));
+  border: 1px solid rgba(15, 122, 90, 0.14);
+}
+
+.profile-listing__upload--failed {
+  background: rgba(180, 50, 50, 0.06);
+  border-color: rgba(180, 50, 50, 0.18);
+}
+
+.profile-listing__upload-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.profile-listing__upload-label {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.profile-listing__upload--failed .profile-listing__upload-label {
+  color: #b43232;
+}
+
+.profile-listing__upload-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.profile-listing__progress {
+  position: relative;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(15, 122, 90, 0.12);
+  overflow: hidden;
+}
+
+.profile-listing__progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #2bb673 55%, var(--accent));
+  background-size: 200% 100%;
+  transition: width 0.35s ease;
+  animation: profile-progress-shimmer 1.6s linear infinite;
+}
+
+@keyframes profile-progress-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.profile-listing__upload-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.profile-listing__upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .profile-listing__title {
   display: block;
   font-size: 1.1rem;

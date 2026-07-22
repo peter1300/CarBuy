@@ -20,7 +20,10 @@ import {
 import { LISTING_SUMMARY_COLUMNS } from '../lib/listingQueries'
 import { buildListingSpecs, type UserListingUpdateInput } from '../lib/listingSpecs'
 import { mapListingRow } from '../lib/mapListing'
-import { processListingVideos } from '../lib/processListingVideos'
+import {
+  processListingVideos,
+  type ListingVideoProgress,
+} from '../lib/listingVideoProcessor'
 import {
   listPendingListingVideosForOwner,
   loadPendingListingVideos,
@@ -49,13 +52,23 @@ export type UserListingInput = {
   status: SellerStatus
 }
 
+export type VideoUploadProgress = ListingVideoProgress
+
+export type RetryListingVideoResult = 'started' | 'needs_files' | 'busy' | 'not_found'
+
 type ListingsContextValue = {
   listings: Listing[]
   loading: boolean
   error: string | null
+  videoProgressById: Record<string, VideoUploadProgress>
   refreshListings: () => Promise<void>
   syncOwnerPendingListings: (ownerId: string) => Promise<void>
   resumeListingVideoProcessing: (ownerId: string) => Promise<void>
+  getVideoUploadProgress: (listingId: string) => VideoUploadProgress | null
+  retryListingVideoProcessing: (
+    listingId: string,
+    files?: { videoFile: File; flawsVideoFile?: File | null },
+  ) => Promise<RetryListingVideoResult>
   addListing: (
     user: User,
     input: UserListingInput,
@@ -94,12 +107,33 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [videoProgressById, setVideoProgressById] = useState<Record<string, VideoUploadProgress>>(
+    {},
+  )
   const listingsRef = useRef(listings)
   const activeProcessingRef = useRef(new Set<string>())
 
   useEffect(() => {
     listingsRef.current = listings
   }, [listings])
+
+  const setProgress = useCallback((listingId: string, progress: VideoUploadProgress) => {
+    setVideoProgressById((prev) => ({ ...prev, [listingId]: progress }))
+  }, [])
+
+  const clearProgress = useCallback((listingId: string) => {
+    setVideoProgressById((prev) => {
+      if (!(listingId in prev)) return prev
+      const next = { ...prev }
+      delete next[listingId]
+      return next
+    })
+  }, [])
+
+  const getVideoUploadProgress = useCallback(
+    (listingId: string) => videoProgressById[listingId] ?? null,
+    [videoProgressById],
+  )
 
   const refreshListings = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -157,10 +191,11 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
   const markListingProcessingFailed = useCallback(async (listingId: string) => {
     await supabase.from('listings').update({ processing_status: 'failed' }).eq('id', listingId)
+    clearProgress(listingId)
     setListings((prev) =>
       prev.map((item) => (item.id === listingId ? { ...item, processingStatus: 'failed' } : item)),
     )
-  }, [])
+  }, [clearProgress])
 
   const runListingVideoProcessing = useCallback(
     (
@@ -171,6 +206,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     ) => {
       if (activeProcessingRef.current.has(listingId)) return
       activeProcessingRef.current.add(listingId)
+      setProgress(listingId, { percent: 1, phase: 'loading' })
 
       void (async () => {
         try {
@@ -179,7 +215,10 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
             ownerId,
             videoFile,
             flawsVideoFile: flawsVideoFile ?? null,
+            onProgress: (progress) => setProgress(listingId, progress),
           })
+
+          setProgress(listingId, { percent: 97, phase: 'saving' })
 
           const { data, error: updateError } = await supabase
             .from('listings')
@@ -200,6 +239,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           }
 
           await removePendingListingVideos(listingId)
+          clearProgress(listingId)
 
           const listing = mapListingRow(data)
           setListings((prev) => {
@@ -214,7 +254,53 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         }
       })()
     },
-    [markListingProcessingFailed],
+    [clearProgress, markListingProcessingFailed, setProgress],
+  )
+
+  const retryListingVideoProcessing = useCallback(
+    async (
+      listingId: string,
+      files?: { videoFile: File; flawsVideoFile?: File | null },
+    ): Promise<RetryListingVideoResult> => {
+      if (activeProcessingRef.current.has(listingId)) return 'busy'
+
+      const listing = listingsRef.current.find((item) => item.id === listingId)
+      const ownerId = listing?.ownerId
+      if (!ownerId) return 'not_found'
+
+      let videoFile = files?.videoFile
+      let flawsVideoFile = files?.flawsVideoFile ?? null
+
+      if (!videoFile) {
+        const pending = await loadPendingListingVideos(listingId)
+        if (!pending) return 'needs_files'
+        const restored = pendingRecordToFiles(pending)
+        videoFile = restored.videoFile
+        flawsVideoFile = restored.flawsVideoFile
+      } else {
+        await savePendingListingVideos({
+          listingId,
+          ownerId,
+          videoFile,
+          flawsVideoFile,
+        })
+      }
+
+      await supabase
+        .from('listings')
+        .update({ processing_status: 'processing' })
+        .eq('id', listingId)
+
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === listingId ? { ...item, processingStatus: 'processing' } : item,
+        ),
+      )
+
+      runListingVideoProcessing(listingId, ownerId, videoFile, flawsVideoFile)
+      return 'started'
+    },
+    [runListingVideoProcessing],
   )
 
   const resumeListingVideoProcessing = useCallback(
@@ -231,8 +317,8 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
       const queued = await listPendingListingVideosForOwner(ownerId)
       const queuedIds = new Set(queued.map((record) => record.listingId))
-      /** Client-side encode/upload stuck longer than this → mark failed (user can re-upload). */
-      const STALE_PROCESSING_MS = 25 * 60 * 1000
+      /** Allow long WASM encodes (up to ~45 min) before marking stale. */
+      const STALE_PROCESSING_MS = 50 * 60 * 1000
       const now = Date.now()
 
       for (const row of processingRows ?? []) {
@@ -246,7 +332,6 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           continue
         }
 
-        // Queued blob gone but still "processing" for a long time → fail cleanly.
         if (!hasQueue) {
           if (isStale) await markListingProcessingFailed(row.id)
           continue
@@ -520,9 +605,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       listings,
       loading,
       error,
+      videoProgressById,
       refreshListings,
       syncOwnerPendingListings,
       resumeListingVideoProcessing,
+      getVideoUploadProgress,
+      retryListingVideoProcessing,
       addListing,
       updateListing,
       getListing,
@@ -535,9 +623,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       listings,
       loading,
       error,
+      videoProgressById,
       refreshListings,
       syncOwnerPendingListings,
       resumeListingVideoProcessing,
+      getVideoUploadProgress,
+      retryListingVideoProcessing,
       addListing,
       updateListing,
       getListing,

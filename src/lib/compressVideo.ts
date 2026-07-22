@@ -1,5 +1,6 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { MAX_LISTING_VIDEO_BYTES } from './listingVideo'
 
 export type CompressProgress = {
   phase: 'loading' | 'compressing'
@@ -21,17 +22,14 @@ type CompressOptions = {
   timeoutMs?: number
 }
 
-/**
- * Browser WASM re-encode of 50MB+ phone videos often takes 20–60+ minutes
- * (or OOMs). Skip and upload the original instead.
- */
-export const SKIP_COMPRESS_BYTES = 50 * 1024 * 1024
+/** Files at/above this size use the faster x264 preset. */
+const LARGE_FILE_PRESET_BYTES = 40 * 1024 * 1024
 
 let ffmpegInstance: FFmpeg | null = null
 let ffmpegLoad: Promise<FFmpeg> | null = null
 let progressHandler: ((ratio: number) => void) | null = null
 
-function resetFFmpeg() {
+export function resetFFmpeg() {
   try {
     if (ffmpegInstance?.loaded) {
       ffmpegInstance.terminate()
@@ -42,6 +40,18 @@ function resetFFmpeg() {
   ffmpegInstance = null
   ffmpegLoad = null
   progressHandler = null
+}
+
+/** ~1 min per 10 MB, clamped to 3–45 minutes. */
+export function compressTimeoutForSize(bytes: number): number {
+  const mb = Math.max(0, bytes / (1024 * 1024))
+  const ms = Math.round((mb / 10) * 60 * 1000)
+  return Math.min(45 * 60 * 1000, Math.max(3 * 60 * 1000, ms))
+}
+
+function adaptivePreset(fileSize: number, override?: CompressOptions['preset']): string {
+  if (override) return override
+  return fileSize >= LARGE_FILE_PRESET_BYTES ? 'veryfast' : 'fast'
 }
 
 async function getFFmpeg(onProgress?: CompressOptions['onProgress']): Promise<FFmpeg> {
@@ -102,26 +112,19 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 }
 
 /**
- * Re-encode to H.264/AAC MP4 at high visual quality (CRF ~18) and max 1080p.
- * Large files skip re-encode (browser WASM is too slow / memory-heavy).
- * If compression fails or the result is larger, returns the original file.
+ * Re-encode to H.264/AAC MP4 at high visual quality (CRF ~20) and max 1080p.
+ * Always attempts compression (no size skip). On failure/timeout returns the original
+ * when it still fits the upload limit.
  */
 export async function compressVideoForUpload(
   file: File,
   options: CompressOptions = {},
 ): Promise<File> {
-  if (file.size >= SKIP_COMPRESS_BYTES) {
-    console.info(
-      `[CarBuy] skipping compression for ${(file.size / (1024 * 1024)).toFixed(1)} MB video (upload original)`,
-    )
-    return file
-  }
-
   const maxHeight = options.maxHeight ?? 1080
-  const crf = options.crf ?? 18
-  const preset = options.preset ?? 'fast'
+  const crf = options.crf ?? 20
+  const preset = adaptivePreset(file.size, options.preset)
   const audioBitrate = options.audioBitrate ?? '160k'
-  const timeoutMs = options.timeoutMs ?? 0
+  const timeoutMs = options.timeoutMs ?? compressTimeoutForSize(file.size)
 
   try {
     const compressPromise = (async () => {
@@ -184,10 +187,10 @@ export async function compressVideoForUpload(
 
     return await withTimeout(compressPromise, timeoutMs, 'Video compression')
   } catch (err) {
-    console.warn('[CarBuy] video compression failed, uploading original', err)
-    // Kill hung WASM encode so the next attempt can start clean.
+    console.warn('[CarBuy] video compression failed, uploading original if within limit', err)
     resetFFmpeg()
-    return file
+    if (file.size <= MAX_LISTING_VIDEO_BYTES) return file
+    throw err instanceof Error ? err : new Error(String(err))
   } finally {
     progressHandler = null
   }
