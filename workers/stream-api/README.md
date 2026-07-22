@@ -15,12 +15,15 @@ npm install
 
 Fill `.dev.vars`:
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_STREAM_API_TOKEN`
+- `STREAM_API_TOKEN` (Stream:Edit API token)
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `STREAM_WEBHOOK_SECRET` (from Stream webhook subscribe response; can set after first deploy)
+
+`STREAM_ACCOUNT_ID` is set in `wrangler.toml` `[vars]` (not a secret).
+
+> Do **not** name Worker secrets `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_STREAM_API_TOKEN` — those collide with Wrangler system env vars and can be `undefined` at runtime.
 
 3. Run locally:
 
@@ -37,8 +40,7 @@ VITE_STREAM_API_URL=http://127.0.0.1:8787
 5. Deploy:
 
 ```bash
-npx wrangler secret put CLOUDFLARE_ACCOUNT_ID
-npx wrangler secret put CLOUDFLARE_STREAM_API_TOKEN
+npx wrangler secret put STREAM_API_TOKEN
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_ANON_KEY
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY

@@ -1,11 +1,24 @@
 export interface Env {
-  CLOUDFLARE_ACCOUNT_ID: string
-  CLOUDFLARE_STREAM_API_TOKEN: string
+  /** Prefer STREAM_* names — CLOUDFLARE_* collides with Wrangler system env vars. */
+  STREAM_ACCOUNT_ID: string
+  STREAM_API_TOKEN: string
   STREAM_WEBHOOK_SECRET: string
   SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
   SUPABASE_ANON_KEY: string
   MAX_DURATION_SECONDS?: string
+}
+
+function streamAccountId(env: Env): string {
+  const id = env.STREAM_ACCOUNT_ID?.trim()
+  if (!id) throw new Error('Missing STREAM_ACCOUNT_ID Worker var')
+  return id
+}
+
+function streamApiToken(env: Env): string {
+  const token = env.STREAM_API_TOKEN?.trim()
+  if (!token) throw new Error('Missing STREAM_API_TOKEN Worker secret')
+  return token
 }
 
 type UploadKind = 'main' | 'flaws'
@@ -118,11 +131,11 @@ async function createDirectUpload(
   meta: Record<string, string>,
 ): Promise<{ uploadURL: string; uid: string }> {
   const maxDurationSeconds = Number(env.MAX_DURATION_SECONDS || 600)
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream/direct_upload`
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${streamAccountId(env)}/stream/direct_upload`
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${env.CLOUDFLARE_STREAM_API_TOKEN}`,
+      Authorization: `Bearer ${streamApiToken(env)}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -143,9 +156,9 @@ async function createDirectUpload(
 
 async function fetchStreamVideo(env: Env, uid: string) {
   const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream/${uid}`,
+    `https://api.cloudflare.com/client/v4/accounts/${streamAccountId(env)}/stream/${uid}`,
     {
-      headers: { Authorization: `Bearer ${env.CLOUDFLARE_STREAM_API_TOKEN}` },
+      headers: { Authorization: `Bearer ${streamApiToken(env)}` },
     },
   )
   const body = (await res.json()) as {
