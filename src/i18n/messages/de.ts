@@ -267,6 +267,11 @@ export const de: Messages = {
   'create.tipLightText': 'Tageslicht oder klare Hallenbeleuchtung.',
   'create.tipSound': 'Ton zählt',
   'create.tipSoundText': 'Motorstart: sofortiger Vertrauensaufbau.',
+  'create.tipPortrait':
+    'Lade nach Möglichkeit ein Hochkantvideo hoch — in Reels und auf dem Handy wirkt es am besten.',
+  'create.tipGalleryPreferred':
+    'Für beste Qualität wähle ein bereits aufgenommenes Video aus der Galerie. Die Browser-Kameraaufnahme ist praktisch, wirkt aber oft weicher.',
+  'create.noFlawsClickToAdd': 'Tippe hier, um stattdessen ein Mängelvideo hochzuladen.',
   'create.flawsTitle': 'Mängel — ehrlich',
   'create.flawsLead':
     'Jedes Gebrauchtwagen hat Mängel. Zeigst du sie ehrlich, vertraut der Käufer mehr — und es gibt weniger Überraschungen bei der Übergabe.',

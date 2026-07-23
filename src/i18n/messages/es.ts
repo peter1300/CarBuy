@@ -267,6 +267,11 @@ export const es: Messages = {
   'create.tipLightText': 'Luz diurna o iluminación limpia de taller.',
   'create.tipSound': 'El sonido importa',
   'create.tipSoundText': 'Arranque del motor: genera confianza al instante.',
+  'create.tipPortrait':
+    'Si puedes, sube un vídeo vertical — se ve mejor en Reels y en el móvil.',
+  'create.tipGalleryPreferred':
+    'Para la mejor calidad, elige un vídeo ya grabado de la galería. Grabar con la cámara del navegador es cómodo, pero suele verse más suave.',
+  'create.noFlawsClickToAdd': 'Toca aquí para subir un vídeo de defectos en su lugar.',
   'create.flawsTitle': 'Defectos — con honestidad',
   'create.flawsLead':
     'Todo coche de segunda mano tiene defectos. Si los muestras con honestidad, el comprador confía más — y hay menos sorpresas en la entrega.',

@@ -271,6 +271,11 @@ export const hu: Messages = {
   'create.tipLightText': 'Nappali fény vagy tiszta csarnokvilágítás.',
   'create.tipSound': 'Hang is számít',
   'create.tipSoundText': 'Motorindítás: azonnali bizalomépítő.',
+  'create.tipPortrait':
+    'Ha teheted, álló (függőleges) videót tölts fel — a Reelsben és mobilon így mutat a legjobban.',
+  'create.tipGalleryPreferred':
+    'A legjobb minőséghez válassz előre felvett videót a galériából. A böngészős kamerafelvétel kényelmes, de általában gyengébb eredményt ad.',
+  'create.noFlawsClickToAdd': 'Kattints ide, ha mégis hibavideót töltenél fel.',
   'create.flawsTitle': 'Hibák — őszintén',
   'create.flawsLead':
     'Minden használtautón vannak hibák. Ha őszintén megmutatod őket, a vevő inkább bízik benned — és kevésbé jön meglepetésként bármi az átadáskor.',

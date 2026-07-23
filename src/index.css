@@ -2973,12 +2973,31 @@ textarea.is-locked:disabled {
   color: var(--accent);
 }
 
-.video-dropzone.is-no-flaws {
-  border-style: solid;
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+.video-dropzone.is-clickable {
+  cursor: pointer;
 }
+
+.video-dropzone.is-clickable:hover {
+  border-color: var(--accent);
+}
+
+.video-dropzone__hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.mini-tip--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.mini-tip--stack span {
+  display: block;
+}
+
 
 .video-dropzone__preview {
   display: block;

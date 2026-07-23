@@ -27,7 +27,7 @@ import { formatListingTitle, type Listing } from '../data/listings'
 export function CreateListingPage() {
   const { user, loading: authLoading } = useAuth()
   const { addListing } = useListings()
-  const { browseCountry, t, locale } = useLocale()
+  const { browseCountry, t } = useLocale()
 
   const STEPS = useMemo(
     () => [
@@ -167,8 +167,8 @@ export function CreateListingPage() {
           make: make || '—',
           model: model || '—',
           year: Number(year) || new Date().getFullYear(),
-          price: Number(price) || 0,
-          mileage: Number(mileage) || 0,
+          price: Number(digitsOnly(price)) || 0,
+          mileage: Number(digitsOnly(mileage)) || 0,
           fuel: fuel || '—',
           transmission: transmission || '—',
           power: Number(power) || 0,
@@ -234,6 +234,23 @@ export function CreateListingPage() {
     setNoFlawsDeclared(true)
   }
 
+  const digitsOnly = (value: string) => value.replace(/\D/g, '')
+
+  const formatGroupedDigits = (digits: string) => {
+    if (!digits) return ''
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
+  const onMileageChange = (raw: string) => {
+    setMileage(digitsOnly(raw))
+  }
+
+  const onPriceChange = (raw: string) => {
+    setPrice(digitsOnly(raw))
+  }
+
+  const canProceedFromFlawsStep = Boolean(flawsVideoFile || noFlawsDeclared)
+
   const onPickImages = (fileList: FileList | null) => {
     setImageError(null)
     if (!fileList || fileList.length === 0) return
@@ -259,8 +276,6 @@ export function CreateListingPage() {
     setImageError(null)
     setImageFiles((prev) => prev.filter((_, i) => i !== index))
   }
-
-  const canProceedFromFlawsStep = Boolean(flawsVideoFile || noFlawsDeclared)
 
   const recorderSupported = canUseInAppRecorder()
 
@@ -355,7 +370,21 @@ export function CreateListingPage() {
                   onChange={(e) => onPickVideo(e.target.files?.[0] ?? null)}
                 />
 
-                <div className={`video-dropzone${videoFile ? ' is-filled' : ''}`}>
+                <div
+                  className={`video-dropzone${videoFile ? ' is-filled' : ' is-clickable'}`}
+                  role={videoFile ? undefined : 'button'}
+                  tabIndex={videoFile ? undefined : 0}
+                  onClick={() => {
+                    if (!videoFile) videoInputRef.current?.click()
+                  }}
+                  onKeyDown={(e) => {
+                    if (videoFile) return
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      videoInputRef.current?.click()
+                    }
+                  }}
+                >
                   {videoFile && videoPreviewUrl ? (
                     <>
                       <video
@@ -365,6 +394,7 @@ export function CreateListingPage() {
                         playsInline
                         preload="metadata"
                         controls
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <strong>{videoFile.name}</strong>
                       <span>{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</span>
@@ -386,6 +416,7 @@ export function CreateListingPage() {
                         </svg>
                       </span>
                       <strong>{t('create.dropMain')}</strong>
+                      <span>{t('create.videoEmptyHint')}</span>
                     </>
                   )}
                 </div>
@@ -411,8 +442,10 @@ export function CreateListingPage() {
                 {videoError && <p className="form-error">{videoError}</p>}
 
                 <div className="tip-row">
-                  <article className="mini-tip">
+                  <article className="mini-tip mini-tip--stack">
                     <strong>{t('create.tipsTitle')}</strong>
+                    <span>{t('create.tipPortrait')}</span>
+                    <span>{t('create.tipGalleryPreferred')}</span>
                   </article>
                 </div>
               </div>
@@ -433,7 +466,19 @@ export function CreateListingPage() {
                 />
 
                 <div
-                  className={`video-dropzone${flawsVideoFile ? ' is-filled' : ''}${noFlawsDeclared ? ' is-no-flaws' : ''}`}
+                  className={`video-dropzone${flawsVideoFile ? ' is-filled' : ' is-clickable'}${noFlawsDeclared ? ' is-no-flaws' : ''}`}
+                  role={flawsVideoFile ? undefined : 'button'}
+                  tabIndex={flawsVideoFile ? undefined : 0}
+                  onClick={() => {
+                    if (!flawsVideoFile) flawsInputRef.current?.click()
+                  }}
+                  onKeyDown={(e) => {
+                    if (flawsVideoFile) return
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      flawsInputRef.current?.click()
+                    }
+                  }}
                 >
                   {flawsVideoFile && flawsPreviewUrl ? (
                     <>
@@ -444,6 +489,7 @@ export function CreateListingPage() {
                         playsInline
                         preload="metadata"
                         controls
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <strong>{flawsVideoFile.name}</strong>
                       <span>{(flawsVideoFile.size / (1024 * 1024)).toFixed(1)} MB</span>
@@ -464,6 +510,7 @@ export function CreateListingPage() {
                       </span>
                       <strong>{t('create.noFlawsSelected')}</strong>
                       <span>{t('create.noFlawsSelectedHint')}</span>
+                      <span className="video-dropzone__hint">{t('create.noFlawsClickToAdd')}</span>
                     </>
                   ) : (
                     <>
@@ -491,7 +538,6 @@ export function CreateListingPage() {
                     type="button"
                     className="btn btn--outline"
                     onClick={() => flawsInputRef.current?.click()}
-                    disabled={noFlawsDeclared}
                   >
                     {t('create.fromGallery')}
                   </button>
@@ -499,8 +545,10 @@ export function CreateListingPage() {
                     <button
                       type="button"
                       className="btn btn--accent"
-                      onClick={() => setRecorderTarget('flaws')}
-                      disabled={noFlawsDeclared}
+                      onClick={() => {
+                        setNoFlawsDeclared(false)
+                        setRecorderTarget('flaws')
+                      }}
                     >
                       {t('create.record')}
                     </button>
@@ -514,7 +562,13 @@ export function CreateListingPage() {
                 <button
                   type="button"
                   className={`btn btn--outline create-no-flaws-btn${noFlawsDeclared ? ' is-active' : ''}`}
-                  onClick={handleDeclareNoFlaws}
+                  onClick={() => {
+                    if (noFlawsDeclared) {
+                      setNoFlawsDeclared(false)
+                      return
+                    }
+                    handleDeclareNoFlaws()
+                  }}
                   disabled={Boolean(flawsVideoFile)}
                 >
                   {t('create.noFlawsBtn')}
@@ -594,10 +648,12 @@ export function CreateListingPage() {
                     <label htmlFor="mileage">{t('create.mileage')}</label>
                     <input
                       id="mileage"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       required
                       value={mileage}
-                      onChange={(e) => setMileage(e.target.value)}
+                      onChange={(e) => onMileageChange(e.target.value)}
                     />
                   </div>
                   <div className="form-field">
@@ -705,10 +761,11 @@ export function CreateListingPage() {
                     <label htmlFor="price">{t('create.price')}</label>
                     <input
                       id="price"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       required
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
+                      value={formatGroupedDigits(price)}
+                      onChange={(e) => onPriceChange(e.target.value)}
                       className="input-price"
                     />
                   </div>
@@ -800,11 +857,17 @@ export function CreateListingPage() {
                     </h3>
                     <p className="preview-card__price">
                       {price
-                        ? `${Number(price).toLocaleString(locale)}`
+                        ? `${formatGroupedDigits(price)} Ft`
                         : t('create.price')}
                     </p>
                     <p className="preview-card__meta">
-                      {[year, mileage && `${Number(mileage).toLocaleString(locale)} km`, fuel, transmission, location]
+                      {[
+                        year,
+                        mileage && `${formatGroupedDigits(mileage)} km`,
+                        fuel,
+                        transmission,
+                        location,
+                      ]
                         .filter(Boolean)
                         .join(' · ')}
                     </p>

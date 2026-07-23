@@ -267,6 +267,11 @@ export const en: Messages = {
   'create.tipLightText': 'Daylight or clean showroom lighting.',
   'create.tipSound': 'Sound matters',
   'create.tipSoundText': 'Engine start: instant trust builder.',
+  'create.tipPortrait':
+    'Upload a portrait (vertical) video when you can — it looks better in Reels and on phones.',
+  'create.tipGalleryPreferred':
+    'For the best quality, pick a video you already recorded from your gallery. In-browser camera recording is convenient, but usually looks softer.',
+  'create.noFlawsClickToAdd': 'Tap here to add a flaws video instead.',
   'create.flawsTitle': 'Flaws — honestly',
   'create.flawsLead':
     'Every used car has flaws. Show them honestly and buyers trust you more — fewer surprises at handover.',
