@@ -2892,12 +2892,17 @@ textarea.is-locked:disabled {
 }
 
 .create-progress__steps {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
   gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .create-progress__step {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2936,11 +2941,14 @@ textarea.is-locked:disabled {
 }
 
 .create-progress__label {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--text-secondary);
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (min-width: 640px) {
@@ -2950,7 +2958,6 @@ textarea.is-locked:disabled {
 
   .create-progress__label {
     font-size: 0.75rem;
-    overflow-wrap: normal;
   }
 }
 
