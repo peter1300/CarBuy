@@ -271,10 +271,12 @@ export const hu: Messages = {
   'create.tipLightText': 'Nappali fény vagy tiszta csarnokvilágítás.',
   'create.tipSound': 'Hang is számít',
   'create.tipSoundText': 'Motorindítás: azonnali bizalomépítő.',
-  'create.tipPortrait':
-    'Ha teheted, álló (függőleges) videót tölts fel — a Reelsben és mobilon így mutat a legjobban.',
-  'create.tipGalleryPreferred':
-    'A legjobb minőséghez válassz előre felvett videót a galériából. A böngészős kamerafelvétel kényelmes, de általában gyengébb eredményt ad.',
+  'create.tipPortrait': 'Álló videó',
+  'create.tipPortraitText':
+    'Ha teheted, függőleges videót tölts fel. A Reelsben és mobilon így mutat a legjobban.',
+  'create.tipGalleryPreferred': 'Galéria a jobb minőséghez',
+  'create.tipGalleryPreferredText':
+    'Válassz előre felvett videót a galériából. A böngészős kamerafelvétel kényelmes, de általában gyengébb eredményt ad.',
   'create.noFlawsClickToAdd': 'Kattints ide, ha mégis hibavideót töltenél fel.',
   'create.flawsTitle': 'Hibák — őszintén',
   'create.flawsLead':
@@ -384,6 +386,9 @@ export const hu: Messages = {
   'product.power': '{power} LE',
   'product.specs': 'Műszaki adatok',
   'product.photos': 'Képek',
+  'product.openPhoto': 'Kép megnyitása nagyban',
+  'product.prevPhoto': 'Előző kép',
+  'product.nextPhoto': 'Következő kép',
   'product.flawsTitle': 'Őszinte pillantás a hibákra',
   'product.processing': 'A videók feldolgozása folyamatban…',
   'product.processingFailed': 'A videófeldolgozás nem sikerült.',

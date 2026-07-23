@@ -246,10 +246,6 @@ export function ProductPage() {
               <p className="product-info__desc">{listing.description}</p>
             </div>
 
-            {(listing.imageUrls?.length ?? 0) > 0 && (
-              <ListingPhotoGallery images={listing.imageUrls!} title={t('product.photos')} />
-            )}
-
             <section className="specs-panel" aria-labelledby="specs-title">
               <h2 id="specs-title">{t('product.specs')}</h2>
               <div className="specs-grid">
@@ -268,6 +264,10 @@ export function ProductPage() {
                 ))}
               </div>
             </section>
+
+            {(listing.imageUrls?.length ?? 0) > 0 && (
+              <ListingPhotoGallery images={listing.imageUrls!} title={t('product.photos')} />
+            )}
 
             <section className="flaws-panel" aria-labelledby="flaws-title">
               <h2 id="flaws-title">{t('product.flawsTitle')}</h2>

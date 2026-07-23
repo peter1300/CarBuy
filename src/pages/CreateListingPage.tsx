@@ -441,13 +441,76 @@ export function CreateListingPage() {
                 </div>
                 {videoError && <p className="form-error">{videoError}</p>}
 
-                <div className="tip-row">
-                  <article className="mini-tip mini-tip--stack">
+                <aside className="create-tips" aria-label={t('create.tipsTitle')}>
+                  <header className="create-tips__header">
+                    <span className="create-tips__badge" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path
+                          d="M9 2.25v1.5M9 14.25v1.5M2.25 9h1.5M14.25 9h1.5M4.05 4.05l1.06 1.06M12.89 12.89l1.06 1.06M4.05 13.95l1.06-1.06M12.89 5.11l1.06-1.06"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        />
+                        <circle cx="9" cy="9" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
+                    </span>
                     <strong>{t('create.tipsTitle')}</strong>
-                    <span>{t('create.tipPortrait')}</span>
-                    <span>{t('create.tipGalleryPreferred')}</span>
-                  </article>
-                </div>
+                  </header>
+                  <ul className="create-tips__list">
+                    <li className="create-tips__item">
+                      <span className="create-tips__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                          <rect
+                            x="5.25"
+                            y="2.5"
+                            width="7.5"
+                            height="13"
+                            rx="1.75"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                          <path
+                            d="M7.5 13.5h3"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </span>
+                      <div>
+                        <strong>{t('create.tipPortrait')}</strong>
+                        <p>{t('create.tipPortraitText')}</p>
+                      </div>
+                    </li>
+                    <li className="create-tips__item">
+                      <span className="create-tips__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                          <rect
+                            x="2.5"
+                            y="4"
+                            width="13"
+                            height="10.5"
+                            rx="2"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                          <path
+                            d="M2.5 11.5l3.2-2.6a1.2 1.2 0 0 1 1.5 0L10 11.5l1.3-1.1a1.2 1.2 0 0 1 1.5 0l2.7 2.1"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <circle cx="6.5" cy="7.25" r="1.1" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <div>
+                        <strong>{t('create.tipGalleryPreferred')}</strong>
+                        <p>{t('create.tipGalleryPreferredText')}</p>
+                      </div>
+                    </li>
+                  </ul>
+                </aside>
               </div>
             )}
 

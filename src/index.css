@@ -1673,7 +1673,7 @@ body.reels-mode .site-footer {
 }
 
 .listing-gallery {
-  margin: 0 0 1.5rem;
+  margin: 1.5rem 0;
 }
 
 .listing-gallery h2 {
@@ -1684,11 +1684,15 @@ body.reels-mode .site-footer {
 }
 
 .listing-gallery__main {
+  display: block;
+  width: 100%;
+  padding: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   aspect-ratio: 16 / 10;
+  cursor: zoom-in;
 }
 
 .listing-gallery__main img {
@@ -1727,6 +1731,80 @@ body.reels-mode .site-footer {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.listing-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(8, 12, 16, 0.88);
+}
+
+.listing-lightbox__frame {
+  position: relative;
+  max-width: min(96vw, 1100px);
+  max-height: 90vh;
+}
+
+.listing-lightbox__frame img {
+  display: block;
+  max-width: 96vw;
+  max-height: 84vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.listing-lightbox__counter {
+  margin: 0.65rem 0 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+}
+
+.listing-lightbox__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.listing-lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.listing-lightbox__nav--prev {
+  left: 0.75rem;
+}
+
+.listing-lightbox__nav--next {
+  right: 0.75rem;
 }
 
 .listing-image-grid {
@@ -2988,16 +3066,79 @@ textarea.is-locked:disabled {
   opacity: 0.85;
 }
 
-.mini-tip--stack {
+.create-tips {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid rgba(15, 122, 90, 0.16);
+}
+
+.create-tips__header {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
 }
 
-.mini-tip--stack span {
+.create-tips__badge {
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(15, 122, 90, 0.12);
+  flex-shrink: 0;
+}
+
+.create-tips__header strong {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--accent-hover);
+}
+
+.create-tips__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.create-tips__item {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+
+.create-tips__icon {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  margin-top: 0.05rem;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.create-tips__item strong {
   display: block;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--text);
+  margin-bottom: 0.15rem;
 }
 
+.create-tips__item p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
 
 .video-dropzone__preview {
   display: block;
@@ -3142,37 +3283,6 @@ textarea.is-locked:disabled {
 
 .video-recorder__actions .btn {
   width: 100%;
-}
-
-.tip-row {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1.25rem;
-}
-
-@media (min-width: 640px) {
-  .tip-row {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.mini-tip {
-  padding: 0.9rem 1rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  border: 1px solid var(--border);
-}
-
-.mini-tip strong {
-  display: block;
-  font-size: 0.875rem;
-  margin-bottom: 0.2rem;
-}
-
-.mini-tip span {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
 }
 
 .honesty-note {

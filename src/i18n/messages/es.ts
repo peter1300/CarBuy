@@ -267,10 +267,12 @@ export const es: Messages = {
   'create.tipLightText': 'Luz diurna o iluminación limpia de taller.',
   'create.tipSound': 'El sonido importa',
   'create.tipSoundText': 'Arranque del motor: genera confianza al instante.',
-  'create.tipPortrait':
-    'Si puedes, sube un vídeo vertical — se ve mejor en Reels y en el móvil.',
-  'create.tipGalleryPreferred':
-    'Para la mejor calidad, elige un vídeo ya grabado de la galería. Grabar con la cámara del navegador es cómodo, pero suele verse más suave.',
+  'create.tipPortrait': 'Vídeo vertical',
+  'create.tipPortraitText':
+    'Si puedes, sube un vídeo en vertical. Se ve mejor en Reels y en el móvil.',
+  'create.tipGalleryPreferred': 'Galería para mejor calidad',
+  'create.tipGalleryPreferredText':
+    'Elige un vídeo ya grabado de la galería. Grabar con la cámara del navegador es cómodo, pero suele verse más suave.',
   'create.noFlawsClickToAdd': 'Toca aquí para subir un vídeo de defectos en su lugar.',
   'create.flawsTitle': 'Defectos — con honestidad',
   'create.flawsLead':
@@ -380,6 +382,9 @@ export const es: Messages = {
   'product.power': '{power} CV',
   'product.specs': 'Datos técnicos',
   'product.photos': 'Fotos',
+  'product.openPhoto': 'Abrir foto en grande',
+  'product.prevPhoto': 'Foto anterior',
+  'product.nextPhoto': 'Foto siguiente',
   'product.flawsTitle': 'Una mirada honesta a los defectos',
   'product.processing': 'Procesando vídeos…',
   'product.processingFailed': 'Error al procesar el vídeo.',

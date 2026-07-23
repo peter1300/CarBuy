@@ -267,10 +267,12 @@ export const de: Messages = {
   'create.tipLightText': 'Tageslicht oder klare Hallenbeleuchtung.',
   'create.tipSound': 'Ton zählt',
   'create.tipSoundText': 'Motorstart: sofortiger Vertrauensaufbau.',
-  'create.tipPortrait':
-    'Lade nach Möglichkeit ein Hochkantvideo hoch — in Reels und auf dem Handy wirkt es am besten.',
-  'create.tipGalleryPreferred':
-    'Für beste Qualität wähle ein bereits aufgenommenes Video aus der Galerie. Die Browser-Kameraaufnahme ist praktisch, wirkt aber oft weicher.',
+  'create.tipPortrait': 'Hochkantvideo',
+  'create.tipPortraitText':
+    'Lade nach Möglichkeit ein vertikales Video hoch. In Reels und auf dem Handy wirkt es am besten.',
+  'create.tipGalleryPreferred': 'Galerie für bessere Qualität',
+  'create.tipGalleryPreferredText':
+    'Wähle ein bereits aufgenommenes Video aus der Galerie. Die Browser-Kameraaufnahme ist praktisch, wirkt aber oft weicher.',
   'create.noFlawsClickToAdd': 'Tippe hier, um stattdessen ein Mängelvideo hochzuladen.',
   'create.flawsTitle': 'Mängel — ehrlich',
   'create.flawsLead':
@@ -380,6 +382,9 @@ export const de: Messages = {
   'product.power': '{power} PS',
   'product.specs': 'Technische Daten',
   'product.photos': 'Fotos',
+  'product.openPhoto': 'Foto vergrößern',
+  'product.prevPhoto': 'Vorheriges Foto',
+  'product.nextPhoto': 'Nächstes Foto',
   'product.flawsTitle': 'Ein ehrlicher Blick auf die Mängel',
   'product.processing': 'Videos werden verarbeitet…',
   'product.processingFailed': 'Videoverarbeitung fehlgeschlagen.',
