@@ -251,12 +251,15 @@ async function markListingReadyFromVideo(env: Env, video: StreamVideo) {
     return
   }
 
-  if (!video.readyToStream && state !== 'ready') return
+  // Early "readyToStream" often only has low rungs; wait until pctComplete ≈ 100.
+  const pct = Number(video.status?.pctComplete)
+  const fullyEncoded =
+    (video.readyToStream || state === 'ready') && Number.isFinite(pct) && pct >= 99.5
+  if (!fullyEncoded) return
 
   const patch = readyPatchFromVideo(video, kind)
   if (listingId) {
     await supabasePatchListing(env, listingId, patch)
-    // If flaws finished after main, don't overwrite ready; if main finishes, set ready.
     return
   }
   await supabasePatchByStreamUid(env, video.uid, kind, patch)
@@ -321,7 +324,11 @@ export default {
           return json({ error: 'Forbidden' }, 403)
         }
 
-        if (video.readyToStream || video.status?.state === 'ready' || video.status?.state === 'error') {
+        if (
+          video.status?.state === 'error' ||
+          ((video.readyToStream || video.status?.state === 'ready') &&
+            Number(video.status?.pctComplete) >= 99.5)
+        ) {
           await markListingReadyFromVideo(env, video)
         }
 

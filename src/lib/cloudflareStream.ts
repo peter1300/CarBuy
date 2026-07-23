@@ -27,7 +27,8 @@ export type StreamStatusResponse = {
 
 const UPLOAD_TIMEOUT_MS = 20 * 60 * 1000
 const POLL_INTERVAL_MS = 2500
-const POLL_TIMEOUT_MS = 20 * 60 * 1000
+/** Higher rungs keep encoding after first "ready" — wait for full ladder. */
+const POLL_TIMEOUT_MS = 30 * 60 * 1000
 
 export function getStreamApiBaseUrl(): string {
   const raw = (import.meta.env.VITE_STREAM_API_URL as string | undefined)?.trim()
@@ -46,6 +47,14 @@ export function isStreamApiConfigured(): boolean {
 export function isHlsUrl(url: string | null | undefined): boolean {
   if (!url) return false
   return /\.m3u8(\?|$)/i.test(url) || /cloudflarestream\.com|videodelivery\.net/i.test(url)
+}
+
+/** Stream marks ready early; higher qualities finish when pctComplete hits 100. */
+export function isStreamEncodeComplete(status: Pick<StreamStatusResponse, 'readyToStream' | 'state' | 'pctComplete'>): boolean {
+  if (status.state === 'error') return false
+  if (!status.readyToStream && status.state !== 'ready') return false
+  const pct = Number(status.pctComplete)
+  return Number.isFinite(pct) && pct >= 99.5
 }
 
 async function getAccessToken(): Promise<string> {
@@ -145,13 +154,55 @@ export async function waitForStreamReady(
     if (status.state === 'error' || status.error) {
       throw new Error(status.error || 'Stream encoding failed')
     }
-    if (status.readyToStream || status.state === 'ready') {
+    // Wait until all ABR rungs exist — early "ready" is often only 360p/480p.
+    if (isStreamEncodeComplete(status)) {
       return status
     }
     if (Date.now() - started > timeoutMs) {
       throw new Error('Stream encoding timed out')
     }
     await new Promise((r) => window.setTimeout(r, intervalMs))
+  }
+}
+
+/**
+ * Pick the highest RESOLUTION/BANDWIDTH media playlist from a master m3u8
+ * so players cannot fall back to a soft ABR rung.
+ */
+export async function resolveHighestHlsVariant(masterUrl: string): Promise<string> {
+  try {
+    const res = await fetch(masterUrl)
+    if (!res.ok) return masterUrl
+    const text = await res.text()
+    if (!text.includes('#EXT-X-STREAM-INF')) return masterUrl
+
+    const lines = text.split(/\r?\n/)
+    let bestScore = -1
+    let bestUri: string | null = null
+    let pendingScore = -1
+
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (line.startsWith('#EXT-X-STREAM-INF:')) {
+        const bw = Number(/BANDWIDTH=(\d+)/i.exec(line)?.[1] || 0)
+        const resMatch = /RESOLUTION=(\d+)x(\d+)/i.exec(line)
+        const pixels = resMatch ? Number(resMatch[1]) * Number(resMatch[2]) : 0
+        pendingScore = pixels * 1_000_000 + bw
+        continue
+      }
+      if (pendingScore >= 0 && line && !line.startsWith('#')) {
+        if (pendingScore > bestScore) {
+          bestScore = pendingScore
+          bestUri = line
+        }
+        pendingScore = -1
+      }
+    }
+
+    if (!bestUri) return masterUrl
+    return new URL(bestUri, masterUrl).href
+  } catch {
+    return masterUrl
   }
 }
 
@@ -169,10 +220,12 @@ export async function attachMediaSource(
     return () => undefined
   }
 
+  const playUrl = isHlsUrl(src) ? await resolveHighestHlsVariant(src) : src
   const canNativeHls = video.canPlayType('application/vnd.apple.mpegurl') !== ''
 
-  if (!isHlsUrl(src) || canNativeHls) {
-    video.src = src
+  // Single highest media playlist (or MP4) — no ABR ladder.
+  if (!isHlsUrl(playUrl) || canNativeHls) {
+    video.src = playUrl
     return () => {
       video.removeAttribute('src')
       video.load()
@@ -181,40 +234,23 @@ export async function attachMediaSource(
 
   const { default: Hls } = await import('hls.js')
   if (!Hls.isSupported()) {
-    video.src = src
+    video.src = playUrl
     return () => {
       video.removeAttribute('src')
       video.load()
     }
   }
 
-  // Always prefer the highest available Stream ABR rung for listing playback.
   const hls = new Hls({
     enableWorker: true,
     lowLatencyMode: false,
-    maxBufferLength: 45,
+    maxBufferLength: 60,
     capLevelToPlayerSize: false,
     testBandwidth: false,
-    abrEwmaDefaultEstimate: 20_000_000,
-    abrEwmaDefaultEstimateMax: Infinity,
-    startLevel: -1,
+    startLevel: 0,
   })
 
-  const lockHighestQuality = () => {
-    const levels = hls.levels
-    if (!levels.length) return
-    const highest = levels.length - 1
-    hls.startLevel = highest
-    hls.loadLevel = highest
-    hls.nextLevel = highest
-    // Setting currentLevel to a concrete index disables ABR auto-selection.
-    hls.currentLevel = highest
-  }
-
-  hls.on(Hls.Events.MANIFEST_PARSED, lockHighestQuality)
-  hls.on(Hls.Events.LEVELS_UPDATED, lockHighestQuality)
-
-  hls.loadSource(src)
+  hls.loadSource(playUrl)
   hls.attachMedia(video)
   return () => {
     hls.destroy()

@@ -6,6 +6,7 @@ import {
 import {
   createStreamUpload,
   isStreamApiConfigured,
+  isStreamEncodeComplete,
   uploadFileToStream,
   waitForStreamReady,
   type StreamStatusResponse,
@@ -68,7 +69,8 @@ function report(
 function encodingRatio(status: StreamStatusResponse): number {
   const pct = Number(status.pctComplete)
   if (Number.isFinite(pct) && pct >= 0) return Math.min(1, pct / 100)
-  if (status.readyToStream || status.state === 'ready') return 1
+  if (isStreamEncodeComplete(status)) return 1
+  if (status.readyToStream || status.state === 'ready') return 0.85
   if (status.state === 'queued' || status.state === 'downloading' || status.state === 'pendingupload') {
     return 0.05
   }
