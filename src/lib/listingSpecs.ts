@@ -38,4 +38,8 @@ export type UserListingUpdateInput = {
   location: string
   description: string
   status: SellerStatus
+  /** Existing image URLs to keep (ordered). */
+  imageUrls?: string[]
+  /** New image files to upload and append. */
+  imageFiles?: File[]
 }

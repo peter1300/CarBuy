@@ -32,6 +32,11 @@ import {
   removePendingListingVideos,
   savePendingListingVideos,
 } from '../lib/listingVideoQueue'
+import {
+  uploadListingImages,
+  syncListingImages,
+  MAX_LISTING_IMAGES,
+} from '../lib/listingImages'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { tGlobal } from '../i18n/messages'
 
@@ -50,6 +55,7 @@ export type UserListingInput = {
   description: string
   videoFile: File
   flawsVideoFile?: File | null
+  imageFiles?: File[]
   status: SellerStatus
 }
 
@@ -535,6 +541,26 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       const listing = mapListingRow(data)
       setListings((prev) => [listing, ...prev.filter((l) => l.id !== listing.id)])
 
+      const imageFiles = (input.imageFiles ?? []).slice(0, MAX_LISTING_IMAGES)
+      if (imageFiles.length > 0) {
+        try {
+          const imageUrls = await uploadListingImages(ownerId, id, imageFiles)
+          const { data: withImages, error: imagesError } = await supabase
+            .from('listings')
+            .update({ image_urls: imageUrls })
+            .eq('id', id)
+            .select('*')
+            .single()
+          if (!imagesError && withImages) {
+            const mapped = mapListingRow(withImages)
+            setListings((prev) => [mapped, ...prev.filter((l) => l.id !== mapped.id)])
+            Object.assign(listing, mapped)
+          }
+        } catch (err) {
+          console.warn('[CarBuy] listing image upload failed', err)
+        }
+      }
+
       await savePendingListingVideos({
         listingId: id,
         ownerId,
@@ -570,6 +596,26 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       const description = input.description || tGlobal('errors.defaultDescription')
       const specs = buildListingSpecs(input)
 
+      let imageUrls = existing.imageUrls ?? []
+      if (input.imageUrls !== undefined || input.imageFiles !== undefined) {
+        const { data: currentRow } = await supabase
+          .from('listings')
+          .select('image_urls')
+          .eq('id', listingId)
+          .maybeSingle()
+        const previousUrls = Array.isArray(currentRow?.image_urls)
+          ? currentRow.image_urls.filter((item): item is string => typeof item === 'string')
+          : existing.imageUrls ?? []
+
+        imageUrls = await syncListingImages({
+          ownerId: user.id,
+          listingId,
+          previousUrls,
+          keepUrls: input.imageUrls ?? previousUrls,
+          newFiles: input.imageFiles ?? [],
+        })
+      }
+
       const { data, error: updateError } = await supabase
         .from('listings')
         .update({
@@ -584,6 +630,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
           description,
           specs,
           seller_status: input.status,
+          image_urls: imageUrls,
         })
         .eq('id', listingId)
         .eq('owner_id', user.id)

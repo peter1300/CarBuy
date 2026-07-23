@@ -38,6 +38,9 @@ export function mapListingRow(row: Partial<ListingRow> & Pick<ListingRow, 'id'>)
     videoDuration: row.video_duration ?? '',
     videoUrl: row.video_url ?? undefined,
     flawsVideoUrl: row.flaws_video_url ?? undefined,
+    imageUrls: Array.isArray(row.image_urls)
+      ? row.image_urls.filter((item): item is string => typeof item === 'string')
+      : [],
     seller: {
       name: row.seller_name ?? '',
       type: row.seller_type ?? 'private',

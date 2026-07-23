@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useListings } from '../context/ListingsContext'
@@ -6,6 +6,11 @@ import { HUNGARY_LOCATIONS } from '../data/hungaryLocations'
 import { formatListingTitle } from '../data/listings'
 import { useLocale } from '../i18n/LocaleContext'
 import { COUNTRY_LABELS, type MarketCountry } from '../i18n/locales'
+import {
+  LISTING_IMAGE_ACCEPT,
+  MAX_LISTING_IMAGES,
+  validateListingImageFile,
+} from '../lib/listingImages'
 import { mapListingRow } from '../lib/mapListing'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { Listing, SellerStatus } from '../data/listings'
@@ -30,6 +35,11 @@ export function EditListingPage() {
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
   const [sellerStatus, setSellerStatus] = useState<SellerStatus>('offline')
+  const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([])
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
+  const [imageError, setImageError] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const [formError, setFormError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -75,6 +85,8 @@ export function EditListingPage() {
       setDescription(mapped.description)
       setPrice(String(mapped.price))
       setSellerStatus(mapped.seller.status)
+      setImageUrls(mapped.imageUrls ?? [])
+      setNewImageFiles([])
       setLoadingListing(false)
     })()
 
@@ -82,6 +94,14 @@ export function EditListingPage() {
       cancelled = true
     }
   }, [id, user, t])
+
+  useEffect(() => {
+    const urls = newImageFiles.map((file) => URL.createObjectURL(file))
+    setNewImagePreviews(urls)
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [newImageFiles])
 
   if (authLoading || loadingListing) {
     return (
@@ -131,6 +151,12 @@ export function EditListingPage() {
         location: location || '—',
         description,
         status: sellerStatus,
+        imageUrls,
+        imageFiles: newImageFiles,
+      }).then((updated) => {
+        setListing(updated)
+        setImageUrls(updated.imageUrls ?? [])
+        setNewImageFiles([])
       })
       setSaved(true)
     } catch (err) {
@@ -293,6 +319,78 @@ export function EditListingPage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="form-field form-field--full">
+            <label>{t('editListing.photos')}</label>
+            <p className="form-hint">{t('editListing.photosHint', { max: MAX_LISTING_IMAGES })}</p>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept={LISTING_IMAGE_ACCEPT}
+              multiple
+              hidden
+              onChange={(e) => {
+                setImageError(null)
+                const files = e.target.files
+                if (!files || files.length === 0) return
+                const next = [...newImageFiles]
+                for (const file of Array.from(files)) {
+                  if (imageUrls.length + next.length >= MAX_LISTING_IMAGES) {
+                    setImageError(t('errors.listingImageCount', { max: MAX_LISTING_IMAGES }))
+                    break
+                  }
+                  const err = validateListingImageFile(file)
+                  if (err) {
+                    setImageError(err)
+                    continue
+                  }
+                  next.push(file)
+                }
+                setNewImageFiles(next)
+                e.target.value = ''
+              }}
+            />
+            <div className="listing-image-grid">
+              {imageUrls.map((url) => (
+                <div className="listing-image-grid__item" key={url}>
+                  <img src={url} alt="" />
+                  <button
+                    type="button"
+                    className="listing-image-grid__remove"
+                    onClick={() => setImageUrls((prev) => prev.filter((item) => item !== url))}
+                    aria-label={t('create.imagesRemove')}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {newImagePreviews.map((url, index) => (
+                <div className="listing-image-grid__item" key={`new-${url}-${index}`}>
+                  <img src={url} alt="" />
+                  <button
+                    type="button"
+                    className="listing-image-grid__remove"
+                    onClick={() =>
+                      setNewImageFiles((prev) => prev.filter((_, i) => i !== index))
+                    }
+                    aria-label={t('create.imagesRemove')}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {imageUrls.length + newImageFiles.length < MAX_LISTING_IMAGES && (
+                <button
+                  type="button"
+                  className="listing-image-grid__add"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {t('create.imagesAdd')}
+                </button>
+              )}
+            </div>
+            {imageError && <p className="form-error">{imageError}</p>}
           </div>
 
           <div className="form-field">

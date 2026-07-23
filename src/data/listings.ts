@@ -23,6 +23,8 @@ export type Listing = {
   videoUrl?: string
   /** Optional honesty / flaws walkthrough video */
   flawsVideoUrl?: string
+  /** Still photos (public URLs), ordered */
+  imageUrls?: string[]
   seller: {
     name: string
     type: 'private' | 'dealer'

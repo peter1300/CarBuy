@@ -16,6 +16,11 @@ import {
   LISTING_VIDEO_ACCEPT,
   MAX_LISTING_VIDEO_BYTES,
 } from '../lib/listingVideo'
+import {
+  LISTING_IMAGE_ACCEPT,
+  MAX_LISTING_IMAGES,
+  validateListingImageFile,
+} from '../lib/listingImages'
 import { canUseInAppRecorder } from '../lib/videoRecorder'
 import { formatListingTitle, type Listing } from '../data/listings'
 
@@ -31,6 +36,7 @@ export function CreateListingPage() {
       { id: 3, label: t('create.step3Label'), hint: t('create.step3Hint') },
       { id: 4, label: t('create.step4Label'), hint: t('create.step4Hint') },
       { id: 5, label: t('create.step5Label'), hint: t('create.step5Hint') },
+      { id: 6, label: t('create.step6Label'), hint: t('create.step6Hint') },
     ],
     [t],
   )
@@ -69,6 +75,10 @@ export function CreateListingPage() {
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
   const [goOnline, setGoOnline] = useState(true)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [imageError, setImageError] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100
   const modelsForMake = useMemo(
@@ -99,6 +109,14 @@ export function CreateListingPage() {
     setFlawsPreviewUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [flawsVideoFile])
+
+  useEffect(() => {
+    const urls = imageFiles.map((file) => URL.createObjectURL(file))
+    setImagePreviews(urls)
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [imageFiles])
 
   useEffect(() => {
     if (make && model && !modelsForMake.includes(model)) {
@@ -159,6 +177,7 @@ export function CreateListingPage() {
           description,
           videoFile,
           flawsVideoFile: flawsVideoFile ?? undefined,
+          imageFiles,
           status: goOnline ? 'online' : 'offline',
         },
       )
@@ -213,6 +232,32 @@ export function CreateListingPage() {
     setFlawsError(null)
     setFlawsVideoFile(null)
     setNoFlawsDeclared(true)
+  }
+
+  const onPickImages = (fileList: FileList | null) => {
+    setImageError(null)
+    if (!fileList || fileList.length === 0) return
+    const incoming = Array.from(fileList)
+    const next = [...imageFiles]
+    for (const file of incoming) {
+      if (next.length >= MAX_LISTING_IMAGES) {
+        setImageError(t('errors.listingImageCount', { max: MAX_LISTING_IMAGES }))
+        break
+      }
+      const err = validateListingImageFile(file)
+      if (err) {
+        setImageError(err)
+        continue
+      }
+      next.push(file)
+    }
+    setImageFiles(next)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  const removeImageAt = (index: number) => {
+    setImageError(null)
+    setImageFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const canProceedFromFlawsStep = Boolean(flawsVideoFile || noFlawsDeclared)
@@ -687,8 +732,54 @@ export function CreateListingPage() {
 
             {step === 5 && (
               <div className="create-step">
-                <h2>{t('create.preview')}</h2>
+                <h2>{t('create.imagesTitle')}</h2>
                 <p className="create-step__lead">{STEPS[4].hint}</p>
+                <p className="form-hint">{t('create.imagesOptional')}</p>
+
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept={LISTING_IMAGE_ACCEPT}
+                  multiple
+                  hidden
+                  onChange={(e) => onPickImages(e.target.files)}
+                />
+
+                <div className="listing-image-grid">
+                  {imagePreviews.map((url, index) => (
+                    <div className="listing-image-grid__item" key={`${url}-${index}`}>
+                      <img src={url} alt="" />
+                      <button
+                        type="button"
+                        className="listing-image-grid__remove"
+                        onClick={() => removeImageAt(index)}
+                        aria-label={t('create.imagesRemove')}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {imageFiles.length < MAX_LISTING_IMAGES && (
+                    <button
+                      type="button"
+                      className="listing-image-grid__add"
+                      onClick={() => imageInputRef.current?.click()}
+                    >
+                      {t('create.imagesAdd')}
+                    </button>
+                  )}
+                </div>
+                {imageError && <p className="form-error">{imageError}</p>}
+                <p className="form-hint">
+                  {t('create.imagesHint', { max: MAX_LISTING_IMAGES, count: imageFiles.length })}
+                </p>
+              </div>
+            )}
+
+            {step === 6 && (
+              <div className="create-step">
+                <h2>{t('create.preview')}</h2>
+                <p className="create-step__lead">{STEPS[5].hint}</p>
 
                 <div className="preview-card">
                   <div className="preview-card__media">
@@ -717,6 +808,11 @@ export function CreateListingPage() {
                         .filter(Boolean)
                         .join(' · ')}
                     </p>
+                    {imageFiles.length > 0 && (
+                      <p className="preview-card__meta">
+                        {t('create.imagesCount', { count: imageFiles.length })}
+                      </p>
+                    )}
                     <p className="preview-card__status">
                       <strong>{goOnline ? t('status.online') : t('status.offline')}</strong>
                     </p>

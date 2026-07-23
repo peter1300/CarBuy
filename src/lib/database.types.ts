@@ -92,6 +92,7 @@ export type Database = {
           video_size_bytes: number | null
           stream_uid: string | null
           flaws_stream_uid: string | null
+          image_urls: string[]
           seller_avatar_url: string | null
           country: string
           processing_status: 'processing' | 'ready' | 'failed'
@@ -127,6 +128,7 @@ export type Database = {
           video_size_bytes?: number | null
           stream_uid?: string | null
           flaws_stream_uid?: string | null
+          image_urls?: string[]
           seller_avatar_url?: string | null
           country?: string
           processing_status?: 'processing' | 'ready' | 'failed'
@@ -162,6 +164,7 @@ export type Database = {
           video_size_bytes?: number | null
           stream_uid?: string | null
           flaws_stream_uid?: string | null
+          image_urls?: string[]
           seller_avatar_url?: string | null
           country?: string
           processing_status?: 'processing' | 'ready' | 'failed'

@@ -2,6 +2,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { formatListingTitle, formatMileage, formatPrice } from '../data/listings'
 import { FavoriteButton } from '../components/FavoriteButton'
+import { ListingPhotoGallery } from '../components/ListingPhotoGallery'
 import { StatusBadge } from '../components/StatusBadge'
 import { StreamVideoPlayer } from '../components/StreamVideoPlayer'
 import { UserAvatar } from '../components/UserAvatar'
@@ -244,6 +245,10 @@ export function ProductPage() {
               </div>
               <p className="product-info__desc">{listing.description}</p>
             </div>
+
+            {(listing.imageUrls?.length ?? 0) > 0 && (
+              <ListingPhotoGallery images={listing.imageUrls!} title={t('product.photos')} />
+            )}
 
             <section className="specs-panel" aria-labelledby="specs-title">
               <h2 id="specs-title">{t('product.specs')}</h2>
