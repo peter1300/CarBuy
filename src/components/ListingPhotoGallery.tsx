@@ -111,12 +111,15 @@ export function ListingPhotoGallery({ images, title }: ListingPhotoGalleryProps)
             className="listing-lightbox__frame"
             onClick={(e) => e.stopPropagation()}
           >
-            <img src={current} alt="" />
-            {images.length > 1 && (
-              <p className="listing-lightbox__counter">
-                {index + 1} / {images.length}
-              </p>
-            )}
+            <div className="listing-lightbox__media">
+              <img src={current} alt="" />
+              <div className="listing-lightbox__watermark" aria-hidden="true" />
+              {images.length > 1 && (
+                <p className="listing-lightbox__counter">
+                  {index + 1} / {images.length}
+                </p>
+              )}
+            </div>
           </div>
 
           {images.length > 1 && (
