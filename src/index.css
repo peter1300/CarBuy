@@ -601,6 +601,152 @@ ul {
   animation: fadeUp 0.8s var(--ease-out) 0.25s forwards;
 }
 
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.35rem;
+  opacity: 0;
+  animation: fadeUp 0.8s var(--ease-out) 0.32s forwards;
+}
+
+.hero__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.hero__trust {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 0.65rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  opacity: 0;
+  animation: fadeUp 0.8s var(--ease-out) 0.4s forwards;
+}
+
+.hero__trust li {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+}
+
+.reels-promo__ctas {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.reels-promo__soft {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.reels-promo__soft:hover {
+  color: #fff;
+}
+
+.landing-steps {
+  padding-top: 0.5rem;
+}
+
+.landing-steps__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.landing-steps__item {
+  align-items: start;
+}
+
+.landing-steps__num {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+@media (min-width: 800px) {
+  .landing-steps__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.buyer-funnel {
+  padding-top: 0;
+}
+
+.buyer-funnel__inner {
+  display: grid;
+  gap: 1.75rem;
+  padding: 1.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.buyer-funnel__eyebrow {
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.55rem;
+}
+
+.buyer-funnel__copy h2 {
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin-bottom: 0.65rem;
+}
+
+.buyer-funnel__copy > p {
+  color: var(--text-secondary);
+  font-size: 1.025rem;
+  line-height: 1.55;
+  max-width: 38rem;
+  margin-bottom: 1.15rem;
+}
+
+.buyer-funnel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .buyer-funnel__inner {
+    grid-template-columns: 1.15fr 1fr;
+    align-items: start;
+    gap: 2rem;
+    padding: 2.25rem;
+  }
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
